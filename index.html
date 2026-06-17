@@ -1,0 +1,1843 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CarbonLens — Personal Carbon Footprint Tracker</title>
+  <!-- Google Fonts Outfit & Inter -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  
+  <style>
+    /* Design Tokens & Theme Setup */
+    :root {
+      --font-display: 'Outfit', sans-serif;
+      --font-sans: 'Inter', sans-serif;
+      
+      --bg-gradient-start: #0b0f19;
+      --bg-gradient-end: #172033;
+      --card-bg: rgba(22, 30, 49, 0.7);
+      --card-border: rgba(255, 255, 255, 0.08);
+      --card-hover-border: rgba(255, 255, 255, 0.16);
+      
+      /* Category Colors */
+      --color-transport: #38bdf8;       /* Sky Blue */
+      --color-food: #fb7185;            /* Rose/Coral */
+      --color-energy: #fbbf24;          /* Amber */
+      --color-shopping: #c084fc;        /* Violet */
+      
+      /* Status Levels */
+      --color-low: #10b981;             /* Emerald Green */
+      --color-medium: #f59e0b;          /* Amber Yellow */
+      --color-high: #ef4444;            /* Coral Red */
+      
+      /* Text Colors */
+      --text-primary: #f8fafc;
+      --text-secondary: #94a3b8;
+      --text-muted: #64748b;
+      
+      --focus-ring: 2px solid #38bdf8;
+    }
+    
+    /* Global Styles */
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+    
+    body {
+      font-family: var(--font-sans);
+      background: linear-gradient(135deg, var(--bg-gradient-start), var(--bg-gradient-end));
+      color: var(--text-primary);
+      min-height: 100vh;
+      overflow-x: hidden;
+      line-height: 1.5;
+    }
+    
+    h1, h2, h3, h4, h5, h6 {
+      font-family: var(--font-display);
+      font-weight: 600;
+      letter-spacing: -0.02em;
+    }
+
+    /* Accessibility Focus Style */
+    *:focus-visible {
+      outline: var(--focus-ring);
+      outline-offset: 4px;
+    }
+
+    /* Glassmorphic Container */
+    .glass-card {
+      background: var(--card-bg);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      border: 1px solid var(--card-border);
+      border-radius: 16px;
+      padding: 24px;
+      transition: border-color 0.2s ease, transform 0.2s ease;
+    }
+
+    .glass-card:hover {
+      border-color: var(--card-hover-border);
+    }
+    
+    .interactive-card {
+      cursor: pointer;
+    }
+    
+    .interactive-card:hover {
+      transform: translateY(-2px);
+    }
+
+    /* Buttons */
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      font-family: var(--font-display);
+      font-weight: 500;
+      padding: 10px 20px;
+      border-radius: 10px;
+      border: none;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      text-decoration: none;
+    }
+    
+    .btn-primary {
+      background: linear-gradient(135deg, #38bdf8, #0369a1);
+      color: white;
+      box-shadow: 0 4px 14px rgba(56, 189, 248, 0.3);
+    }
+    
+    .btn-primary:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 6px 20px rgba(56, 189, 248, 0.4);
+    }
+    
+    .btn-secondary {
+      background: rgba(255, 255, 255, 0.08);
+      color: var(--text-primary);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+    }
+    
+    .btn-secondary:hover {
+      background: rgba(255, 255, 255, 0.12);
+    }
+
+    .btn-danger {
+      background: rgba(239, 68, 68, 0.15);
+      color: #fca5a5;
+      border: 1px solid rgba(239, 68, 68, 0.3);
+    }
+
+    .btn-danger:hover {
+      background: rgba(239, 68, 68, 0.25);
+    }
+
+    /* Form Inputs */
+    .form-group {
+      margin-bottom: 20px;
+    }
+    
+    .form-label {
+      display: block;
+      font-family: var(--font-display);
+      font-size: 0.9rem;
+      font-weight: 500;
+      margin-bottom: 8px;
+      color: var(--text-secondary);
+    }
+    
+    .form-input, .form-select {
+      width: 100%;
+      background: rgba(15, 23, 42, 0.6);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 10px;
+      padding: 12px 16px;
+      color: var(--text-primary);
+      font-family: var(--font-sans);
+      font-size: 0.95rem;
+      transition: border-color 0.2s ease;
+    }
+    
+    .form-input:focus, .form-select:focus {
+      outline: none;
+      border-color: #38bdf8;
+      box-shadow: 0 0 0 2px rgba(56, 189, 248, 0.2);
+    }
+    
+    /* Layout Grid */
+    .app-container {
+      max-width: 1280px;
+      margin: 0 auto;
+      padding: 40px 20px;
+    }
+    
+    .header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 40px;
+      flex-wrap: wrap;
+      gap: 20px;
+    }
+    
+    .header-logo {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    
+    .header-title {
+      font-size: 2.2rem;
+      font-weight: 800;
+      background: linear-gradient(135deg, #f8fafc, #94a3b8);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+    
+    .grid-layout {
+      display: grid;
+      grid-template-columns: 1.2fr 1fr 1fr;
+      gap: 24px;
+    }
+
+    @media (max-width: 1100px) {
+      .grid-layout {
+        grid-template-columns: 1fr 1fr;
+      }
+    }
+    
+    @media (max-width: 768px) {
+      .grid-layout {
+        grid-template-columns: 1fr;
+      }
+      .header {
+        flex-direction: column;
+        align-items: flex-start;
+      }
+    }
+
+    /* Date Selector */
+    .date-selector {
+      display: flex;
+      background: rgba(15, 23, 42, 0.5);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: 30px;
+      padding: 4px;
+      overflow-x: auto;
+      max-width: 100%;
+    }
+    
+    .date-pill {
+      background: transparent;
+      border: none;
+      color: var(--text-secondary);
+      font-family: var(--font-display);
+      font-weight: 500;
+      padding: 8px 16px;
+      border-radius: 20px;
+      cursor: pointer;
+      white-space: nowrap;
+      transition: all 0.2s ease;
+    }
+    
+    .date-pill.active {
+      background: rgba(56, 189, 248, 0.15);
+      color: #38bdf8;
+      border: 1px solid rgba(56, 189, 248, 0.2);
+    }
+    
+    .date-pill:hover:not(.active) {
+      color: var(--text-primary);
+      background: rgba(255, 255, 255, 0.04);
+    }
+
+    /* Error & Warning Styles */
+    .field-error {
+      color: #fca5a5;
+      font-size: 0.8rem;
+      margin-top: 6px;
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+
+    .field-warning {
+      color: #fde047;
+      font-size: 0.8rem;
+      margin-top: 6px;
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+
+    /* Badges */
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 0.75rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      padding: 4px 8px;
+      border-radius: 12px;
+      letter-spacing: 0.05em;
+    }
+    
+    .badge-low {
+      background: rgba(16, 185, 129, 0.15);
+      color: #34d399;
+      border: 1px solid rgba(16, 185, 129, 0.2);
+    }
+    
+    .badge-medium {
+      background: rgba(245, 158, 11, 0.15);
+      color: #fbbf24;
+      border: 1px solid rgba(245, 158, 11, 0.2);
+    }
+    
+    .badge-high {
+      background: rgba(239, 68, 68, 0.15);
+      color: #f87171;
+      border: 1px solid rgba(239, 68, 68, 0.2);
+    }
+
+    /* Onboarding Overlay */
+    .overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(11, 15, 25, 0.85);
+      backdrop-filter: blur(20px);
+      z-index: 100;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+    }
+    
+    .overlay-content {
+      width: 100%;
+      max-width: 580px;
+    }
+
+    /* Tabs for Form */
+    .tabs-header {
+      display: flex;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+      margin-bottom: 24px;
+      gap: 8px;
+    }
+
+    .tab-btn {
+      background: transparent;
+      border: none;
+      color: var(--text-secondary);
+      font-family: var(--font-display);
+      font-weight: 500;
+      font-size: 0.95rem;
+      padding: 10px 16px;
+      cursor: pointer;
+      position: relative;
+      transition: color 0.2s ease;
+    }
+
+    .tab-btn.active {
+      color: var(--text-primary);
+    }
+
+    .tab-btn.active::after {
+      content: '';
+      position: absolute;
+      bottom: -1px;
+      left: 0;
+      right: 0;
+      height: 2px;
+      background: #38bdf8;
+    }
+
+    /* Animation Reductions */
+    @media (prefers-reduced-motion: reduce) {
+      * {
+        animation-delay: 0s !important;
+        animation-duration: 0s !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0s !important;
+        scroll-behavior: auto !important;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div id="root"></div>
+
+  <script type="module">
+    import React, { useState, useReducer, useMemo, useCallback, useEffect, useRef } from 'https://esm.sh/react@19?dev';
+    import { createRoot } from 'https://esm.sh/react-dom@19/client?dev';
+
+    // ==========================================
+    // DATA LAYER: EMISSION FACTORS & METADATA
+    // ==========================================
+
+    /**
+     * Emission factors defined in kg CO2e per unit.
+     * Sources:
+     * - Transport: UK DEFRA Greenhouse Gas Conversion Factors (2023)
+     * - Food: Poore & Nemecek, Science (2018) / Our World in Data
+     * - Energy: EPA eGRID (2023) / US Energy Information Administration
+     * - Shopping: Ellen MacArthur Foundation / UNEP Lifecycle Analysis
+     */
+    const EMISSION_FACTORS = {
+      transport: {
+        car: 0.210,      // kg CO2e / km (Petrol/diesel medium car average)
+        flight: 0.255,   // kg CO2e / km (Short-haul passenger flight average)
+        transit: 0.089,  // kg CO2e / km (Local bus/train passenger average)
+        cycling: 0.000,  // kg CO2e / km (Active travel / zero emission)
+      },
+      food: {
+        beef: 6.610,     // kg CO2e / serving (Beef meal serving, approx 150g)
+        chicken: 1.840,  // kg CO2e / serving (Poultry meal serving, approx 150g)
+        vegetarian: 0.610, // kg CO2e / serving (Vegetarian average meal)
+        vegan: 0.390,    // kg CO2e / serving (Vegan/plant-based average meal)
+      },
+      energy: {
+        electricity: 0.233, // kg CO2e / kWh (US average electricity grid intensity)
+        gas: 2.040,      // kg CO2e / therm (Natural gas combustion)
+      },
+      shopping: {
+        clothing: 10.000, // kg CO2e / new item (Average clothing item production)
+        electronics: 70.000, // kg CO2e / new item (Smartphone/tablet manufacturing average)
+        secondhand: 1.500, // kg CO2e / item (Used/secondhand processing & shipping)
+      }
+    };
+
+    /**
+     * Unrealistic caps to prevent extreme outliers in calculations.
+     */
+    const INPUT_LIMITS = {
+      transport: { max: 2000, label: 'km' },
+      food: { max: 10, label: 'meals' },
+      energy_electricity: { max: 200, label: 'kWh' },
+      energy_gas: { max: 50, label: 'therms' },
+      shopping: { max: 20, label: 'items' }
+    };
+
+    /**
+     * Global daily benchmarks in kg CO2e.
+     * Source: Global Average targets from IPCC and Paris Agreement trajectory.
+     */
+    const GLOBAL_BENCHMARKS = {
+      total: 6.30,       // Recommended daily budget target
+      transport: 2.50,   // Global daily average for transport
+      food: 2.00,        // Global daily average for food
+      energy: 1.20,      // Global daily average for home energy
+      shopping: 0.60,    // Global daily average for shopping
+    };
+
+    /**
+     * Reduction tips registry used by the Insights Engine.
+     */
+    const REDUCTION_TIPS = {
+      transport: [
+        {
+          action: "Swap short car trips for Cycling/Walking",
+          saving: 1.05,
+          difficulty: "Easy",
+          explanation: "Trips under 5km are highly inefficient for cars. Active travel emits 0 kg CO2e."
+        },
+        {
+          action: "Utilize Public Transit instead of driving",
+          saving: 3.63,
+          difficulty: "Medium",
+          explanation: "Taking the train or bus cuts transportation emissions per km by over 60%."
+        },
+        {
+          action: "Substitute high-speed train for short flight",
+          saving: 120.00,
+          difficulty: "Hard",
+          explanation: "Aviation has the highest warming effect per hour; regional rail is significantly cleaner."
+        }
+      ],
+      food: [
+        {
+          action: "Switch Beef meal to Chicken or Fish",
+          saving: 4.77,
+          difficulty: "Easy",
+          explanation: "Poultry has roughly 70% lower emissions intensity than methane-heavy beef production."
+        },
+        {
+          action: "Adopt a Vegetarian or Vegan diet day",
+          saving: 6.00,
+          difficulty: "Medium",
+          explanation: "Swapping animal-based meals for plant-based ingredients reduces dietary emissions by 90%."
+        },
+        {
+          action: "Plan meals to avoid household food waste",
+          saving: 1.50,
+          difficulty: "Easy",
+          explanation: "Throwing away food releases methane in landfills. Planning purchases avoids decay emissions."
+        }
+      ],
+      energy: [
+        {
+          action: "Lower heating by 2°C or raise cooling",
+          saving: 1.80,
+          difficulty: "Easy",
+          explanation: "Adjusting thermostat settings slightly can cut heating and cooling power by 10%."
+        },
+        {
+          action: "Unplug standby devices and use LEDs",
+          saving: 0.50,
+          difficulty: "Easy",
+          explanation: "Vampire power draws account for 5% of household energy. LEDs reduce direct lighting draws."
+        },
+        {
+          action: "Upgrade wall insulation or double glaze windows",
+          saving: 4.20,
+          difficulty: "Hard",
+          explanation: "Better home thermal envelopes block temperature leaks, dropping furnace/AC duty cycles."
+        }
+      ],
+      shopping: [
+        {
+          action: "Buy secondhand clothing or furniture",
+          saving: 8.50,
+          difficulty: "Easy",
+          explanation: "Thrifting prevents new supply-chain processing emissions, requiring only transport/cleaning."
+        },
+        {
+          action: "Repair or trade-in old electronics",
+          saving: 68.50,
+          difficulty: "Hard",
+          explanation: "Manufacturing devices accounts for ~85% of their total carbon footprint; prolonging lifetime is key."
+        },
+        {
+          action: "Invest in high-durability products",
+          saving: 5.00,
+          difficulty: "Medium",
+          explanation: "Higher-quality items reduce the absolute purchase frequency, lowering overall lifecycle waste."
+        }
+      ]
+    };
+
+    // ==========================================
+    // STATE LAYER: REDUCER & UTILS
+    // ==========================================
+
+    const INITIAL_STATE = {
+      profile: {
+        country: 'United States',
+        householdSize: 2,
+        dietType: 'omnivore',
+        transportMode: 'car',
+        onboardingCompleted: false,
+      },
+      activities: [],
+      dailyHistory: {}, // { YYYY-MM-DD: total_emissions }
+    };
+
+    /**
+     * Check if a date string is within the last 7 rolling days.
+     * @param {string} dateStr - The YYYY-MM-DD formatted date string.
+     * @returns {boolean} True if the date is within 7 days.
+     */
+    function isWithinLast7Days(dateStr) {
+      const date = new Date(dateStr);
+      const today = new Date();
+      today.setHours(0,0,0,0);
+      date.setHours(0,0,0,0);
+      
+      const diffTime = today - date;
+      const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+      return diffDays >= 0 && diffDays < 7;
+    }
+
+    /**
+     * Check if a date string is within the last 14 rolling days.
+     * Used to preserve enough daily totals for the 14-day sparkline.
+     * @param {string} dateStr - The YYYY-MM-DD formatted date.
+     * @returns {boolean} True if the date is within 14 days.
+     */
+    function isWithinLast14Days(dateStr) {
+      const date = new Date(dateStr);
+      const today = new Date();
+      today.setHours(0,0,0,0);
+      date.setHours(0,0,0,0);
+      
+      const diffTime = today - date;
+      const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+      return diffDays >= 0 && diffDays < 14;
+    }
+
+    /**
+     * Reducer handles core transitions for tracking activities, profile settings, and daily calculations.
+     * @param {Object} state - The current application state.
+     * @param {Object} action - Action details.
+     * @returns {Object} The updated state.
+     */
+    function carbonReducer(state, action) {
+      switch (action.type) {
+        case 'COMPLETE_ONBOARDING': {
+          const nextState = {
+            ...state,
+            profile: {
+              ...state.profile,
+              ...action.payload,
+              onboardingCompleted: true,
+            }
+          };
+          saveState(nextState);
+          return nextState;
+        }
+        case 'ADD_ACTIVITY': {
+          const updatedActivities = [action.payload, ...state.activities];
+          
+          // Re-calculate daily history for target date
+          const date = action.payload.date;
+          const dayEmissions = updatedActivities
+            .filter(act => act.date === date)
+            .reduce((acc, curr) => acc + curr.emissions, 0);
+
+          const nextState = {
+            ...state,
+            activities: updatedActivities,
+            dailyHistory: {
+              ...state.dailyHistory,
+              [date]: dayEmissions,
+            }
+          };
+          saveState(nextState);
+          return nextState;
+        }
+        case 'DELETE_ACTIVITY': {
+          const updatedActivities = state.activities.filter(act => act.id !== action.payload);
+          const targetAct = state.activities.find(act => act.id === action.payload);
+          let nextHistory = { ...state.dailyHistory };
+          
+          if (targetAct) {
+            const date = targetAct.date;
+            const dayEmissions = updatedActivities
+              .filter(act => act.date === date)
+              .reduce((acc, curr) => acc + curr.emissions, 0);
+            
+            if (dayEmissions === 0) {
+              delete nextHistory[date];
+            } else {
+              nextHistory[date] = dayEmissions;
+            }
+          }
+
+          const nextState = {
+            ...state,
+            activities: updatedActivities,
+            dailyHistory: nextHistory,
+          };
+          saveState(nextState);
+          return nextState;
+        }
+        case 'RESET_ALL': {
+          localStorage.removeItem('carbon_lens_state');
+          return {
+            ...INITIAL_STATE,
+            profile: {
+              ...INITIAL_STATE.profile,
+              onboardingCompleted: false
+            }
+          };
+        }
+        case 'LOAD_STATE': {
+          return action.payload;
+        }
+        default:
+          return state;
+      }
+    }
+
+    /**
+     * Safely saves state to localStorage.
+     * @param {Object} state - Current application state.
+     */
+    function saveState(state) {
+      try {
+        localStorage.setItem('carbon_lens_state', JSON.stringify(state));
+      } catch (err) {
+        console.warn('LocalStorage unavailable. Falling back to memory storage.', err);
+      }
+    }
+
+    /**
+     * Safely loads and filters state from localStorage on application start.
+     * @returns {Object} The rehydrated and sanitized state.
+     */
+    function loadAndSanitizeState() {
+      try {
+        const saved = localStorage.getItem('carbon_lens_state');
+        if (saved) {
+          const parsed = JSON.parse(saved);
+          if (parsed) {
+            // Apply 7-day auto-expiry of detailed activity logs
+            if (Array.isArray(parsed.activities)) {
+              parsed.activities = parsed.activities.filter(act => isWithinLast7Days(act.date));
+            }
+            // Apply 14-day auto-expiry of summarized daily totals
+            if (parsed.dailyHistory) {
+              const cleanHistory = {};
+              Object.keys(parsed.dailyHistory).forEach(dateKey => {
+                if (isWithinLast14Days(dateKey)) {
+                  cleanHistory[dateKey] = parsed.dailyHistory[dateKey];
+                }
+              });
+              parsed.dailyHistory = cleanHistory;
+            }
+            return parsed;
+          }
+        }
+      } catch (err) {
+        console.error('Failed to parse localStorage. Defaulting to initial state.', err);
+      }
+      return INITIAL_STATE;
+    }
+
+    // ==========================================
+    // UTILITY UI COMPONENTS
+    // ==========================================
+
+    /**
+     * Custom colored indicator badge showing impact rating.
+     */
+    function ImpactBadge({ score }) {
+      let variant = 'low';
+      let icon = '🟢';
+      let label = 'Low';
+
+      if (score > 8) {
+        variant = 'high';
+        icon = '🔴';
+        label = 'High';
+      } else if (score >= 4) {
+        variant = 'medium';
+        icon = '🟡';
+        label = 'Medium';
+      }
+
+      return React.createElement(
+        'span',
+        { className: `badge badge-${variant}` },
+        `${icon} ${label}`
+      );
+    }
+
+    /**
+     * Modal overlay to setup user profile details.
+     */
+    function OnboardingOverlay({ onSubmit }) {
+      const [country, setCountry] = useState('United States');
+      const [householdSize, setHouseholdSize] = useState(2);
+      const [dietType, setDietType] = useState('omnivore');
+      const [transportMode, setTransportMode] = useState('car');
+
+      const handleFormSubmit = (e) => {
+        e.preventDefault();
+        onSubmit({ country, householdSize: parseInt(householdSize), dietType, transportMode });
+      };
+
+      return React.createElement(
+        'div',
+        { className: 'overlay' },
+        React.createElement(
+          'div',
+          { className: 'glass-card overlay-content' },
+          React.createElement('h2', { style: { fontSize: '1.8rem', marginBottom: '8px' } }, 'Welcome to CarbonLens'),
+          React.createElement(
+            'p',
+            { style: { color: 'var(--text-secondary)', marginBottom: '24px', fontSize: '0.95rem' } },
+            'Let\'s build your baseline profile to customize targets and daily category calculations.'
+          ),
+          React.createElement(
+            'form',
+            { onSubmit: handleFormSubmit },
+            React.createElement(
+              'div',
+              { className: 'form-group' },
+              React.createElement('label', { className: 'form-label', htmlFor: 'ob-country' }, 'Country of Residence'),
+              React.createElement(
+                'select',
+                {
+                  id: 'ob-country',
+                  className: 'form-select',
+                  value: country,
+                  onChange: (e) => setCountry(e.target.value)
+                },
+                React.createElement('option', { value: 'United States' }, 'United States (High baseline intensity)'),
+                React.createElement('option', { value: 'United Kingdom' }, 'United Kingdom (Medium baseline intensity)'),
+                React.createElement('option', { value: 'Germany' }, 'Germany (Medium baseline intensity)'),
+                React.createElement('option', { value: 'India' }, 'India (Low baseline intensity)')
+              )
+            ),
+            React.createElement(
+              'div',
+              { className: 'form-group' },
+              React.createElement('label', { className: 'form-label', htmlFor: 'ob-house' }, 'Household Size'),
+              React.createElement(
+                'select',
+                {
+                  id: 'ob-house',
+                  className: 'form-select',
+                  value: householdSize,
+                  onChange: (e) => setHouseholdSize(e.target.value)
+                },
+                React.createElement('option', { value: '1' }, '1 Person (Single occupancy)'),
+                React.createElement('option', { value: '2' }, '2 People (Shared utility shares)'),
+                React.createElement('option', { value: '3' }, '3 People'),
+                React.createElement('option', { value: '4' }, '4+ People')
+              )
+            ),
+            React.createElement(
+              'div',
+              { className: 'form-group' },
+              React.createElement('label', { className: 'form-label', htmlFor: 'ob-diet' }, 'Dietary Preference'),
+              React.createElement(
+                'select',
+                {
+                  id: 'ob-diet',
+                  className: 'form-select',
+                  value: dietType,
+                  onChange: (e) => setDietType(e.target.value)
+                },
+                React.createElement('option', { value: 'carnivore' }, 'Meat Enthusiast (High animal protein)'),
+                React.createElement('option', { value: 'omnivore' }, 'Balanced Omnivore'),
+                React.createElement('option', { value: 'vegetarian' }, 'Vegetarian (Zero direct meats)'),
+                React.createElement('option', { value: 'vegan' }, 'Vegan (100% plant-based)')
+              )
+            ),
+            React.createElement(
+              'div',
+              { className: 'form-group' },
+              React.createElement('label', { className: 'form-label', htmlFor: 'ob-transit' }, 'Primary Commute Mode'),
+              React.createElement(
+                'select',
+                {
+                  id: 'ob-transit',
+                  className: 'form-select',
+                  value: transportMode,
+                  onChange: (e) => setTransportMode(e.target.value)
+                },
+                React.createElement('option', { value: 'car' }, 'Personal Automobile (Combustion/Hybrid)'),
+                React.createElement('option', { value: 'transit' }, 'Public Transportation (Trains/Buses)'),
+                React.createElement('option', { value: 'cycling' }, 'Active Commuting (Walking/Cycling)')
+              )
+            ),
+            React.createElement(
+              'div',
+              { style: { display: 'flex', justifyContent: 'flex-end', marginTop: '28px' } },
+              React.createElement(
+                'button',
+                { type: 'submit', className: 'btn btn-primary', style: { width: '100%' } },
+                'Create Profile & Start Tracking'
+              )
+            )
+          )
+        )
+      );
+    }
+
+    /**
+     * Circular gauge component showing daily emissions performance.
+     */
+    function FootprintGauge({ value, target }) {
+      const radius = 64;
+      const strokeWidth = 12;
+      const circumference = 2 * Math.PI * radius;
+      
+      const percentage = Math.min(value / target, 1);
+      const strokeDashoffset = circumference - (percentage * circumference);
+
+      // Determine gauge color style dynamically
+      let strokeColor = 'var(--color-low)';
+      let textIndicator = 'Excellent';
+      if (value > 8) {
+        strokeColor = 'var(--color-high)';
+        textIndicator = 'Action Required';
+      } else if (value >= 4) {
+        strokeColor = 'var(--color-medium)';
+        textIndicator = 'Moderate';
+      }
+
+      return React.createElement(
+        'div',
+        { 
+          className: 'glass-card', 
+          style: { 
+            display: 'flex', 
+            flexDirection: 'column', 
+            alignItems: 'center', 
+            justifyContent: 'center',
+            textAlign: 'center'
+          }
+        },
+        React.createElement('h3', { style: { marginBottom: '20px', fontSize: '1.2rem', alignSelf: 'flex-start' } }, 'Daily Balance Gauge'),
+        React.createElement(
+          'div',
+          { style: { position: 'relative', width: '160px', height: '160px', marginBottom: '20px' } },
+          React.createElement(
+            'svg',
+            { 
+              width: '160', 
+              height: '160', 
+              viewBox: '0 0 160 160',
+              role: 'img',
+              'aria-label': `Carbon footprint circular progress bar. Current footprint is ${value.toFixed(2)} kg CO2e, representing ${Math.round((value/target)*100)} percent of global daily target.`
+            },
+            React.createElement('circle', {
+              cx: '80',
+              cy: '80',
+              r: radius,
+              fill: 'transparent',
+              stroke: 'rgba(255, 255, 255, 0.05)',
+              strokeWidth: strokeWidth
+            }),
+            React.createElement('circle', {
+              cx: '80',
+              cy: '80',
+              r: radius,
+              fill: 'transparent',
+              stroke: strokeColor,
+              strokeWidth: strokeWidth,
+              strokeDasharray: circumference,
+              strokeDashoffset: strokeDashoffset,
+              strokeLinecap: 'round',
+              transform: 'rotate(-90 80 80)',
+              style: {
+                transition: 'stroke-dashoffset 0.8s cubic-bezier(0.4, 0, 0.2, 1), stroke 0.3s ease'
+              }
+            })
+          ),
+          React.createElement(
+            'div',
+            { 
+              style: { 
+                position: 'absolute', 
+                top: 0, 
+                left: 0, 
+                right: 0, 
+                bottom: 0, 
+                display: 'flex', 
+                flexDirection: 'column', 
+                alignItems: 'center', 
+                justifyContent: 'center' 
+              } 
+            },
+            React.createElement('span', { style: { fontSize: '1.8rem', fontWeight: '800', fontFamily: 'var(--font-display)' } }, value.toFixed(1)),
+            React.createElement('span', { style: { fontSize: '0.75rem', color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.05em' } }, 'kg CO2e')
+          )
+        ),
+        React.createElement(
+          'div',
+          { style: { display: 'flex', flexDirection: 'column', gap: '4px' } },
+          React.createElement(
+            'div',
+            { style: { display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' } },
+            React.createElement(ImpactBadge, { score: value }),
+            React.createElement('span', { style: { fontSize: '0.9rem', color: 'var(--text-secondary)' } }, `vs target ${target} kg`)
+          )
+        )
+      );
+    }
+
+    /**
+     * SVG Donut Chart representing emissions per category.
+     */
+    function CategoryDonutChart({ data }) {
+      const [hoveredCat, setHoveredCat] = useState(null);
+
+      const total = useMemo(() => {
+        return Object.values(data).reduce((acc, curr) => acc + curr, 0);
+      }, [data]);
+
+      const segments = useMemo(() => {
+        const result = [];
+        let accumulatedPercentage = 0;
+        
+        const categories = [
+          { key: 'transport', label: 'Transport', color: 'var(--color-transport)' },
+          { key: 'food', label: 'Food', color: 'var(--color-food)' },
+          { key: 'energy', label: 'Energy', color: 'var(--color-energy)' },
+          { key: 'shopping', label: 'Shopping', color: 'var(--color-shopping)' },
+        ];
+
+        categories.forEach(cat => {
+          const val = data[cat.key] || 0;
+          const pct = total > 0 ? val / total : 0;
+          result.push({
+            ...cat,
+            value: val,
+            percentage: pct,
+            offset: accumulatedPercentage
+          });
+          accumulatedPercentage += pct;
+        });
+
+        return result;
+      }, [data, total]);
+
+      const radius = 40;
+      const strokeWidth = 10;
+      const circumference = 2 * Math.PI * radius;
+
+      // Handle displaying text details in the center of the ring
+      const centerLabel = hoveredCat 
+        ? hoveredCat.toUpperCase() 
+        : (total > 0 ? 'BREAKDOWN' : 'NO LOGS');
+        
+      const centerVal = hoveredCat
+        ? `${data[hoveredCat].toFixed(1)} kg`
+        : `${total.toFixed(1)} kg`;
+
+      return React.createElement(
+        'div',
+        { className: 'glass-card', style: { display: 'flex', flexDirection: 'column' } },
+        React.createElement('h3', { style: { marginBottom: '20px', fontSize: '1.2rem' } }, 'Category Distribution'),
+        React.createElement(
+          'div',
+          { 
+            style: { 
+              display: 'flex', 
+              alignItems: 'center', 
+              justifyContent: 'center', 
+              gap: '24px', 
+              flexWrap: 'wrap' 
+            } 
+          },
+          React.createElement(
+            'div',
+            { style: { position: 'relative', width: '130px', height: '130px' } },
+            React.createElement(
+              'svg',
+              { 
+                width: '130', 
+                height: '130', 
+                viewBox: '0 0 100 100',
+                role: 'img',
+                'aria-label': `Donut chart breakdown of emissions. Transport: ${data.transport.toFixed(1)} kg, Food: ${data.food.toFixed(1)} kg, Energy: ${data.energy.toFixed(1)} kg, Shopping: ${data.shopping.toFixed(1)} kg.`
+              },
+              total === 0 ? React.createElement('circle', {
+                cx: '50',
+                cy: '50',
+                r: radius,
+                fill: 'transparent',
+                stroke: 'rgba(255, 255, 255, 0.08)',
+                strokeWidth: strokeWidth
+              }) : segments.map(seg => {
+                if (seg.percentage === 0) return null;
+                const isHovered = hoveredCat === seg.key;
+                return React.createElement('circle', {
+                  key: seg.key,
+                  cx: '50',
+                  cy: '50',
+                  r: radius,
+                  fill: 'transparent',
+                  stroke: seg.color,
+                  strokeWidth: isHovered ? strokeWidth + 2.5 : strokeWidth,
+                  strokeDasharray: circumference,
+                  strokeDashoffset: circumference - (seg.percentage * circumference),
+                  transform: `rotate(${(seg.offset * 360) - 90} 50 50)`,
+                  onMouseEnter: () => setHoveredCat(seg.key),
+                  onMouseLeave: () => setHoveredCat(null),
+                  onFocus: () => setHoveredCat(seg.key),
+                  onBlur: () => setHoveredCat(null),
+                  tabIndex: 0,
+                  style: {
+                    transition: 'stroke-width 0.2s ease, stroke-dashoffset 0.5s ease',
+                    cursor: 'pointer',
+                    outline: 'none'
+                  }
+                });
+              })
+            ),
+            React.createElement(
+              'div',
+              { 
+                style: { 
+                  position: 'absolute', 
+                  top: 0, 
+                  left: 0, 
+                  right: 0, 
+                  bottom: 0, 
+                  display: 'flex', 
+                  flexDirection: 'column', 
+                  alignItems: 'center', 
+                  justifyContent: 'center', 
+                  pointerEvents: 'none' 
+                } 
+              },
+              React.createElement('span', { style: { fontSize: '0.65rem', color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.05em', fontWeight: '600' } }, centerLabel),
+              React.createElement('span', { style: { fontSize: '1rem', fontWeight: '800', fontFamily: 'var(--font-display)' } }, centerVal)
+            )
+          ),
+          React.createElement(
+            'div',
+            { style: { display: 'flex', flexDirection: 'column', gap: '8px', flex: '1', minWidth: '120px' } },
+            segments.map(seg => {
+              const delta = seg.value - GLOBAL_BENCHMARKS[seg.key];
+              const pctDiff = (delta / GLOBAL_BENCHMARKS[seg.key]) * 100;
+              const isOver = delta > 0;
+              
+              return React.createElement(
+                'div',
+                { 
+                  key: seg.key, 
+                  style: { 
+                    display: 'flex', 
+                    justifyContent: 'space-between', 
+                    alignItems: 'center',
+                    padding: '4px 8px',
+                    borderRadius: '8px',
+                    background: hoveredCat === seg.key ? 'rgba(255, 255, 255, 0.04)' : 'transparent',
+                    transition: 'background 0.2s ease'
+                  } 
+                },
+                React.createElement(
+                  'div',
+                  { style: { display: 'flex', alignItems: 'center', gap: '8px' } },
+                  React.createElement('span', { style: { width: '8px', height: '8px', borderRadius: '50%', background: seg.color } }),
+                  React.createElement('span', { style: { fontSize: '0.85rem', color: 'var(--text-secondary)', textTransform: 'capitalize' } }, seg.key)
+                ),
+                React.createElement(
+                  'div',
+                  { style: { display: 'flex', flexDirection: 'column', alignItems: 'flex-end' } },
+                  React.createElement('span', { style: { fontSize: '0.85rem', fontWeight: '600' } }, `${seg.value.toFixed(1)} kg`),
+                  seg.value > 0 && React.createElement(
+                    'span', 
+                    { 
+                      style: { 
+                        fontSize: '0.65rem', 
+                        fontWeight: '700',
+                        color: isOver ? 'var(--color-high)' : 'var(--color-low)' 
+                      } 
+                    },
+                    `${isOver ? '+' : ''}${pctDiff.toFixed(0)}% avg`
+                  )
+                )
+              );
+            })
+          )
+        )
+      );
+    }
+
+    /**
+     * Sparkline chart comparison comparing daily emission totals.
+     */
+    function WeeklySparkline({ dailyHistory }) {
+      const datesThisWeek = useMemo(() => {
+        const dates = [];
+        for (let i = 6; i >= 0; i--) {
+          const d = new Date();
+          d.setDate(d.getDate() - i);
+          dates.push(d.toISOString().split('T')[0]);
+        }
+        return dates;
+      }, []);
+
+      const datesLastWeek = useMemo(() => {
+        const dates = [];
+        for (let i = 13; i >= 7; i--) {
+          const d = new Date();
+          d.setDate(d.getDate() - i);
+          dates.push(d.toISOString().split('T')[0]);
+        }
+        return dates;
+      }, []);
+
+      const thisWeekData = useMemo(() => {
+        return datesThisWeek.map(date => dailyHistory[date] || 0);
+      }, [dailyHistory, datesThisWeek]);
+
+      const lastWeekData = useMemo(() => {
+        return datesLastWeek.map(date => dailyHistory[date] || 0);
+      }, [dailyHistory, datesLastWeek]);
+
+      const maxVal = useMemo(() => {
+        const combined = [...thisWeekData, ...lastWeekData];
+        const highest = Math.max(...combined);
+        return highest > 0 ? highest * 1.15 : 10;
+      }, [thisWeekData, lastWeekData]);
+
+      const width = 240;
+      const height = 64;
+      const padding = 4;
+
+      const getPointsPath = (data) => {
+        return data.map((val, idx) => {
+          const x = padding + (idx * ((width - (padding * 2)) / 6));
+          const y = height - padding - ((val / maxVal) * (height - (padding * 2)));
+          return { x, y };
+        });
+      };
+
+      const thisWeekPoints = getPointsPath(thisWeekData);
+      const lastWeekPoints = getPointsPath(lastWeekData);
+
+      const thisWeekPath = thisWeekPoints.map((p, idx) => `${idx === 0 ? 'M' : 'L'} ${p.x} ${p.y}`).join(' ');
+      const lastWeekPath = lastWeekPoints.map((p, idx) => `${idx === 0 ? 'M' : 'L'} ${p.x} ${p.y}`).join(' ');
+
+      // Path closure for gradient background
+      const thisWeekAreaPath = thisWeekPoints.length > 0 
+        ? `${thisWeekPath} L ${thisWeekPoints[thisWeekPoints.length - 1].x} ${height} L ${thisWeekPoints[0].x} ${height} Z` 
+        : '';
+
+      const thisWeekTotal = thisWeekData.reduce((acc, curr) => acc + curr, 0);
+      const lastWeekTotal = lastWeekData.reduce((acc, curr) => acc + curr, 0);
+      const deltaTotal = thisWeekTotal - lastWeekTotal;
+      const improved = deltaTotal <= 0;
+
+      return React.createElement(
+        'div',
+        { className: 'glass-card', style: { display: 'flex', flexDirection: 'column' } },
+        React.createElement('h3', { style: { marginBottom: '12px', fontSize: '1.2rem' } }, 'Weekly Emission Trend'),
+        React.createElement(
+          'div',
+          { style: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px' } },
+          React.createElement(
+            'div',
+            { style: { display: 'flex', flexDirection: 'column' } },
+            React.createElement('span', { style: { fontSize: '1.4rem', fontWeight: '800' } }, `${thisWeekTotal.toFixed(1)} kg`),
+            React.createElement('span', { style: { fontSize: '0.75rem', color: 'var(--text-secondary)' } }, 'This rolling week total')
+          ),
+          React.createElement(
+            'div',
+            { 
+              className: `badge badge-${improved ? 'low' : 'high'}`,
+              style: { alignSelf: 'center' }
+            },
+            improved 
+              ? `📉 -${Math.abs(deltaTotal).toFixed(1)} kg vs last week`
+              : `📈 +${deltaTotal.toFixed(1)} kg vs last week`
+          )
+        ),
+        React.createElement(
+          'div',
+          { style: { display: 'flex', justifyContent: 'center', width: '100%', marginBottom: '12px' } },
+          React.createElement(
+            'svg',
+            { 
+              width: '100%', 
+              height: height, 
+              viewBox: `0 0 ${width} ${height}`,
+              preserveAspectRatio: 'none',
+              role: 'img',
+              'aria-label': `Weekly trend comparison chart. Current week total is ${thisWeekTotal.toFixed(1)} kg CO2e, last week was ${lastWeekTotal.toFixed(1)} kg CO2e.`
+            },
+            React.createElement(
+              'defs',
+              null,
+              React.createElement(
+                'linearGradient',
+                { id: 'sparkGrad', x1: '0', y1: '0', x2: '0', y2: '1' },
+                React.createElement('stop', { offset: '0%', stopColor: 'var(--color-transport)', stopOpacity: '0.35' }),
+                React.createElement('stop', { offset: '100%', stopColor: 'var(--color-transport)', stopOpacity: '0' })
+              )
+            ),
+            /* Last Week Line (Dashed) */
+            React.createElement('path', {
+              d: lastWeekPath,
+              fill: 'none',
+              stroke: 'rgba(255, 255, 255, 0.15)',
+              strokeWidth: '1.5',
+              strokeDasharray: '3,3',
+              strokeLinecap: 'round',
+              strokeLinejoin: 'round'
+            }),
+            /* This Week Area */
+            React.createElement('path', {
+              d: thisWeekAreaPath,
+              fill: 'url(#sparkGrad)'
+            }),
+            /* This Week Line */
+            React.createElement('path', {
+              d: thisWeekPath,
+              fill: 'none',
+              stroke: 'var(--color-transport)',
+              strokeWidth: '2.5',
+              strokeLinecap: 'round',
+              strokeLinejoin: 'round'
+            }),
+            /* Current Day Highlight Marker */
+            thisWeekPoints.length > 0 && React.createElement('circle', {
+              cx: thisWeekPoints[thisWeekPoints.length - 1].x,
+              cy: thisWeekPoints[thisWeekPoints.length - 1].y,
+              r: '4',
+              fill: 'var(--color-transport)',
+              stroke: '#ffffff',
+              strokeWidth: '1.5'
+            })
+          )
+        ),
+        React.createElement(
+          'div',
+          { style: { display: 'flex', gap: '16px', fontSize: '0.7rem', color: 'var(--text-muted)' } },
+          React.createElement(
+            'div',
+            { style: { display: 'flex', alignItems: 'center', gap: '6px' } },
+            React.createElement('span', { style: { display: 'inline-block', width: '12px', height: '2px', background: 'var(--color-transport)' } }),
+            'This Week'
+          ),
+          React.createElement(
+            'div',
+            { style: { display: 'flex', alignItems: 'center', gap: '6px' } },
+            React.createElement('span', { style: { display: 'inline-block', width: '12px', height: '2px', borderBottom: '2px dashed rgba(255, 255, 255, 0.25)' } }),
+            'Last Week'
+          )
+        )
+      );
+    }
+
+    /**
+     * Actionable personalized tips based on user data.
+     */
+    function InsightsPanel({ activities }) {
+      const insights = useMemo(() => {
+        // Calculate category totals over the rolling 7 days
+        const totals = { transport: 0, food: 0, energy: 0, shopping: 0 };
+        activities.forEach(act => {
+          if (totals[act.category] !== undefined) {
+            totals[act.category] += act.emissions;
+          }
+        });
+
+        // Determine top category
+        let topCategory = 'food'; // default fallback
+        let maxVal = -1;
+        Object.entries(totals).forEach(([cat, val]) => {
+          if (val > maxVal) {
+            maxVal = val;
+            topCategory = cat;
+          }
+        });
+
+        return REDUCTION_TIPS[topCategory] || REDUCTION_TIPS.food;
+      }, [activities]);
+
+      return React.createElement(
+        'div',
+        { className: 'glass-card', style: { display: 'flex', flexDirection: 'column', gap: '16px' } },
+        React.createElement('h3', { style: { fontSize: '1.2rem' } }, 'Actionable Insights'),
+        React.createElement(
+          'div',
+          { style: { display: 'flex', flexDirection: 'column', gap: '14px' } },
+          insights.map((tip, idx) => {
+            let diffColor = 'var(--color-low)';
+            if (tip.difficulty === 'Medium') diffColor = 'var(--color-medium)';
+            if (tip.difficulty === 'Hard') diffColor = 'var(--color-high)';
+
+            return React.createElement(
+              'div',
+              { 
+                key: idx, 
+                style: { 
+                  background: 'rgba(255, 255, 255, 0.02)', 
+                  border: '1px solid rgba(255, 255, 255, 0.05)', 
+                  borderRadius: '12px',
+                  padding: '12px 16px',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '6px'
+                } 
+              },
+              React.createElement(
+                'div',
+                { style: { display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '12px' } },
+                React.createElement('span', { style: { fontWeight: '600', fontSize: '0.9rem', color: 'var(--text-primary)' } }, tip.action),
+                React.createElement(
+                  'span', 
+                  { 
+                    style: { 
+                      fontSize: '0.7rem', 
+                      color: diffColor, 
+                      fontWeight: '700', 
+                      textTransform: 'uppercase',
+                      border: `1px solid ${diffColor}`,
+                      padding: '2px 6px',
+                      borderRadius: '4px',
+                      whiteSpace: 'nowrap'
+                    } 
+                  }, 
+                  tip.difficulty
+                )
+              ),
+              React.createElement('p', { style: { fontSize: '0.8rem', color: 'var(--text-secondary)' } }, tip.explanation),
+              React.createElement(
+                'span', 
+                { style: { fontSize: '0.75rem', color: 'var(--color-low)', fontWeight: '600', alignSelf: 'flex-start', marginTop: '4px' } },
+                `Estimated saving: -${tip.saving.toFixed(1)} kg CO2e`
+              )
+            );
+          })
+        )
+      );
+    }
+
+    /**
+     * Interactive activity logging form.
+     */
+    function ActivityForm({ onAdd, selectedDate }) {
+      const [activeTab, setActiveTab] = useState('transport');
+      
+      // Select fields depending on category
+      const [type, setType] = useState('car');
+      const [quantityStr, setQuantityStr] = useState('');
+      const [note, setNote] = useState('');
+      
+      // Inline validation states
+      const [error, setError] = useState('');
+      const [warning, setWarning] = useState('');
+
+      const handleTabChange = (tab) => {
+        setActiveTab(tab);
+        setError('');
+        setWarning('');
+        setQuantityStr('');
+        setNote('');
+        
+        // Pick default types
+        if (tab === 'transport') setType('car');
+        if (tab === 'food') setType('beef');
+        if (tab === 'energy') setType('electricity');
+        if (tab === 'shopping') setType('clothing');
+      };
+
+      const handleQuantityChange = (e) => {
+        const val = e.target.value;
+        setQuantityStr(val);
+        setError('');
+        setWarning('');
+
+        if (val === '') return;
+
+        const num = parseFloat(val);
+        if (isNaN(num) || num < 0) {
+          setError('⚠️ Quantity must be a positive number.');
+          return;
+        }
+
+        // Check against warning limits
+        const limitKey = activeTab === 'energy' ? `${activeTab}_${type}` : activeTab;
+        const limit = INPUT_LIMITS[limitKey];
+        if (limit && num > limit.max) {
+          setWarning(`⚠️ Note: Values above ${limit.max} ${limit.label} will be capped to preserve graph scaling.`);
+        }
+      };
+
+      const handleTypeChange = (e) => {
+        const newType = e.target.value;
+        setType(newType);
+        setError('');
+        setWarning('');
+        
+        // Re-evaluate limits with new type
+        const num = parseFloat(quantityStr);
+        if (!isNaN(num)) {
+          const limitKey = activeTab === 'energy' ? `${activeTab}_${newType}` : activeTab;
+          const limit = INPUT_LIMITS[limitKey];
+          if (limit && num > limit.max) {
+            setWarning(`⚠️ Note: Values above ${limit.max} ${limit.label} will be capped.`);
+          }
+        }
+      };
+
+      const handleSubmit = (e) => {
+        e.preventDefault();
+        const num = parseFloat(quantityStr);
+        if (isNaN(num) || num < 0 || quantityStr.trim() === '') {
+          setError('⚠️ Please provide a valid quantity before logging.');
+          return;
+        }
+
+        // Apply caps for unrealistic inputs
+        let finalQuantity = num;
+        const limitKey = activeTab === 'energy' ? `${activeTab}_${type}` : activeTab;
+        const limit = INPUT_LIMITS[limitKey];
+        if (limit && num > limit.max) {
+          finalQuantity = limit.max;
+        }
+
+        // Compute direct emissions using constants
+        const factor = EMISSION_FACTORS[activeTab][type];
+        const computedEmissions = finalQuantity * factor;
+
+        onAdd({
+          id: Date.now().toString(),
+          date: selectedDate,
+          category: activeTab,
+          type,
+          quantity: finalQuantity,
+          emissions: computedEmissions,
+          note: note.trim()
+        });
+
+        // Reset fields
+        setQuantityStr('');
+        setNote('');
+        setError('');
+        setWarning('');
+      };
+
+      return React.createElement(
+        'div',
+        { className: 'glass-card' },
+        React.createElement('h3', { style: { marginBottom: '16px', fontSize: '1.2rem' } }, 'Log Activity'),
+        
+        /* Category Selector Tabs */
+        React.createElement(
+          'div',
+          { className: 'tabs-header' },
+          ['transport', 'food', 'energy', 'shopping'].map(tab => 
+            React.createElement(
+              'button',
+              {
+                key: tab,
+                type: 'button',
+                className: `tab-btn ${activeTab === tab ? 'active' : ''}`,
+                onClick: () => handleTabChange(tab)
+              },
+              tab.charAt(0).toUpperCase() + tab.slice(1)
+            )
+          )
+        ),
+
+        React.createElement(
+          'form',
+          { onSubmit: handleSubmit },
+          /* Category Type Dropdowns */
+          React.createElement(
+            'div',
+            { className: 'form-group' },
+            React.createElement('label', { className: 'form-label', htmlFor: 'act-type' }, 'Activity Subtype'),
+            React.createElement(
+              'select',
+              {
+                id: 'act-type',
+                className: 'form-select',
+                value: type,
+                onChange: handleTypeChange
+              },
+              activeTab === 'transport' && [
+                React.createElement('option', { key: 'car', value: 'car' }, `Car Commute (${EMISSION_FACTORS.transport.car} kg/km)`),
+                React.createElement('option', { key: 'flight', value: 'flight' }, `Flight (${EMISSION_FACTORS.transport.flight} kg/km)`),
+                React.createElement('option', { key: 'transit', value: 'transit' }, `Public Transit (${EMISSION_FACTORS.transport.transit} kg/km)`),
+                React.createElement('option', { key: 'cycling', value: 'cycling' }, `Cycling/Walking (${EMISSION_FACTORS.transport.cycling} kg/km)`)
+              ],
+              activeTab === 'food' && [
+                React.createElement('option', { key: 'beef', value: 'beef' }, `Beef Meal (${EMISSION_FACTORS.food.beef} kg/serving)`),
+                React.createElement('option', { key: 'chicken', value: 'chicken' }, `Chicken/Poultry (${EMISSION_FACTORS.food.chicken} kg/serving)`),
+                React.createElement('option', { key: 'vegetarian', value: 'vegetarian' }, `Vegetarian Meal (${EMISSION_FACTORS.food.vegetarian} kg/serving)`),
+                React.createElement('option', { key: 'vegan', value: 'vegan' }, `Vegan/Plant-based (${EMISSION_FACTORS.food.vegan} kg/serving)`)
+              ],
+              activeTab === 'energy' && [
+                React.createElement('option', { key: 'electricity', value: 'electricity' }, `Electricity Usage (${EMISSION_FACTORS.energy.electricity} kg/kWh)`),
+                React.createElement('option', { key: 'gas', value: 'gas' }, `Gas Heating (${EMISSION_FACTORS.energy.gas} kg/therm)`)
+              ],
+              activeTab === 'shopping' && [
+                React.createElement('option', { key: 'clothing', value: 'clothing' }, `New Clothing Item (${EMISSION_FACTORS.shopping.clothing} kg/item)`),
+                React.createElement('option', { key: 'electronics', value: 'electronics' }, `Electronics Device (${EMISSION_FACTORS.shopping.electronics} kg/item)`),
+                React.createElement('option', { key: 'secondhand', value: 'secondhand' }, `Secondhand Item (${EMISSION_FACTORS.shopping.secondhand} kg/item)`)
+              ]
+            )
+          ),
+
+          /* Quantity Input */
+          React.createElement(
+            'div',
+            { className: 'form-group' },
+            React.createElement(
+              'label', 
+              { className: 'form-label', htmlFor: 'act-quantity' }, 
+              activeTab === 'transport' ? 'Distance (km)' :
+              activeTab === 'food' ? 'Servings (meals)' :
+              activeTab === 'energy' && type === 'electricity' ? 'Power Used (kWh)' :
+              activeTab === 'energy' && type === 'gas' ? 'Gas Volume (therms)' :
+              'Quantity (items)'
+            ),
+            React.createElement('input', {
+              id: 'act-quantity',
+              type: 'text',
+              className: 'form-input',
+              placeholder: 'e.g. 15',
+              value: quantityStr,
+              onChange: handleQuantityChange
+            }),
+            error && React.createElement('div', { className: 'field-error' }, error),
+            warning && React.createElement('div', { className: 'field-warning' }, warning)
+          ),
+
+          /* Note Field */
+          React.createElement(
+            'div',
+            { className: 'form-group' },
+            React.createElement('label', { className: 'form-label', htmlFor: 'act-note' }, 'Optional Note'),
+            React.createElement('input', {
+              id: 'act-note',
+              type: 'text',
+              className: 'form-input',
+              placeholder: 'e.g. Commute to office',
+              value: note,
+              onChange: (e) => setNote(e.target.value)
+            })
+          ),
+
+          React.createElement(
+            'button',
+            { type: 'submit', className: 'btn btn-primary', style: { width: '100%', marginTop: '8px' } },
+            'Log Activity'
+          )
+        )
+      );
+    }
+
+    /**
+     * History list container.
+     */
+    function ActivityHistoryList({ activities, onDelete }) {
+      return React.createElement(
+        'div',
+        { className: 'glass-card', style: { display: 'flex', flexDirection: 'column', gap: '16px' } },
+        React.createElement('h3', { style: { fontSize: '1.2rem' } }, 'Activity Logs'),
+        activities.length === 0 ? React.createElement(
+          'p',
+          { style: { color: 'var(--text-secondary)', fontSize: '0.9rem', textAlign: 'center', padding: '20px 0' } },
+          'No activity logs found for this date.'
+        ) : React.createElement(
+          'div',
+          { style: { display: 'flex', flexDirection: 'column', gap: '12px', maxHeight: '320px', overflowY: 'auto', paddingRight: '4px' } },
+          activities.map(act => {
+            let catColor = 'var(--color-transport)';
+            let icon = '🚗';
+            if (act.category === 'food') { catColor = 'var(--color-food)'; icon = '🥗'; }
+            if (act.category === 'energy') { catColor = 'var(--color-energy)'; icon = '⚡'; }
+            if (act.category === 'shopping') { catColor = 'var(--color-shopping)'; icon = '🛍️'; }
+
+            return React.createElement(
+              'div',
+              { 
+                key: act.id,
+                style: { 
+                  display: 'flex', 
+                  justifyContent: 'space-between', 
+                  alignItems: 'center', 
+                  padding: '10px 12px', 
+                  background: 'rgba(255, 255, 255, 0.02)',
+                  border: '1px solid rgba(255, 255, 255, 0.05)',
+                  borderRadius: '10px'
+                } 
+              },
+              React.createElement(
+                'div',
+                { style: { display: 'flex', alignItems: 'center', gap: '12px' } },
+                React.createElement(
+                  'span', 
+                  { 
+                    style: { 
+                      display: 'flex', 
+                      alignItems: 'center', 
+                      justifyContent: 'center', 
+                      width: '36px', 
+                      height: '36px', 
+                      borderRadius: '8px', 
+                      background: `rgba(${catColor === 'var(--color-transport)' ? '56, 189, 248' : catColor === 'var(--color-food)' ? '251, 113, 133' : catColor === 'var(--color-energy)' ? '251, 191, 36' : '192, 132, 252'}, 0.1)`,
+                      color: catColor
+                    } 
+                  },
+                  icon
+                ),
+                React.createElement(
+                  'div',
+                  { style: { display: 'flex', flexDirection: 'column' } },
+                  React.createElement(
+                    'span', 
+                    { style: { fontSize: '0.85rem', fontWeight: '600', textTransform: 'capitalize' } }, 
+                    `${act.type} (${act.quantity} ${act.category === 'transport' ? 'km' : act.category === 'food' ? 'meals' : act.category === 'energy' ? (act.type === 'electricity' ? 'kWh' : 'therms') : 'items'})`
+                  ),
+                  act.note && React.createElement('span', { style: { fontSize: '0.75rem', color: 'var(--text-secondary)' } }, act.note)
+                )
+              ),
+              React.createElement(
+                'div',
+                { style: { display: 'flex', alignItems: 'center', gap: '12px' } },
+                React.createElement('span', { style: { fontSize: '0.85rem', fontWeight: '700' } }, `${act.emissions.toFixed(1)} kg`),
+                React.createElement(
+                  'button',
+                  { 
+                    className: 'btn btn-danger', 
+                    style: { padding: '4px 8px', fontSize: '0.75rem', borderRadius: '6px' },
+                    onClick: () => onDelete(act.id)
+                  },
+                  'Delete'
+                )
+              )
+            );
+          })
+        )
+      );
+    }
+
+    // ==========================================
+    // MAIN APP ENTRY CONTAINER
+    // ==========================================
+
+    function App() {
+      const [state, dispatch] = useReducer(carbonReducer, INITIAL_STATE, loadAndSanitizeState);
+      const [selectedDate, setSelectedDate] = useState(() => new Date().toISOString().split('T')[0]);
+
+      // Handle onboarding submissions
+      const handleOnboardingSubmit = (profileData) => {
+        dispatch({ type: 'COMPLETE_ONBOARDING', payload: profileData });
+      };
+
+      // Reset application states
+      const handleReset = () => {
+        if (confirm('Are you sure you want to delete all activity history and profile settings?')) {
+          dispatch({ type: 'RESET_ALL' });
+        }
+      };
+
+      // Handle logging logs
+      const handleAddActivity = (activity) => {
+        dispatch({ type: 'ADD_ACTIVITY', payload: activity });
+      };
+
+      // Handle deleting logs
+      const handleDeleteActivity = (id) => {
+        dispatch({ type: 'DELETE_ACTIVITY', payload: id });
+      };
+
+      // Produce rolling 7 days keys
+      const datePills = useMemo(() => {
+        const pills = [];
+        const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+        for (let i = 6; i >= 0; i--) {
+          const d = new Date();
+          d.setDate(d.getDate() - i);
+          const dateStr = d.toISOString().split('T')[0];
+          const isToday = i === 0;
+          const isYesterday = i === 1;
+          
+          let label = isToday ? 'Today' : isYesterday ? 'Yesterday' : `${days[d.getDay()]} ${d.getDate()}`;
+          pills.push({ date: dateStr, label });
+        }
+        return pills;
+      }, []);
+
+      // Filter activities for active day
+      const dayActivities = useMemo(() => {
+        return state.activities.filter(act => act.date === selectedDate);
+      }, [state.activities, selectedDate]);
+
+      // Category emission totals for the selected date
+      const categoryTotals = useMemo(() => {
+        const totals = { transport: 0, food: 0, energy: 0, shopping: 0 };
+        dayActivities.forEach(act => {
+          if (totals[act.category] !== undefined) {
+            totals[act.category] += act.emissions;
+          }
+        });
+        return totals;
+      }, [dayActivities]);
+
+      // Combined total for selected day
+      const dailyTotal = useMemo(() => {
+        return Object.values(categoryTotals).reduce((acc, curr) => acc + curr, 0);
+      }, [categoryTotals]);
+
+      return React.createElement(
+        'div',
+        { style: { width: '100%' } },
+        /* Onboarding Screen */
+        !state.profile.onboardingCompleted && React.createElement(OnboardingOverlay, { onSubmit: handleOnboardingSubmit }),
+
+        /* Application Layout */
+        React.createElement(
+          'div',
+          { className: 'app-container' },
+          
+          /* Header Navigation bar */
+          React.createElement(
+            'header',
+            { className: 'header' },
+            React.createElement(
+              'div',
+              { className: 'header-logo' },
+              React.createElement('span', { style: { fontSize: '2rem' } }, '🟢'),
+              React.createElement('h1', { className: 'header-title' }, 'CarbonLens')
+            ),
+            React.createElement(
+              'div',
+              { style: { display: 'flex', alignItems: 'center', gap: '16px', flexWrap: 'wrap' } },
+              React.createElement(
+                'div',
+                { className: 'date-selector' },
+                datePills.map(pill => 
+                  React.createElement(
+                    'button',
+                    {
+                      key: pill.date,
+                      className: `date-pill ${selectedDate === pill.date ? 'active' : ''}`,
+                      onClick: () => setSelectedDate(pill.date)
+                    },
+                    pill.label
+                  )
+                )
+              ),
+              React.createElement(
+                'button',
+                { className: 'btn btn-secondary btn-danger', onClick: handleReset },
+                'Reset'
+              )
+            )
+          ),
+
+          /* Dashboard Grid Layout */
+          React.createElement(
+            'main',
+            { className: 'grid-layout' },
+            
+            /* Column 1: Daily Gauges */
+            React.createElement(
+              'div',
+              { style: { display: 'flex', flexDirection: 'column', gap: '24px' } },
+              React.createElement(FootprintGauge, { value: dailyTotal, target: GLOBAL_BENCHMARKS.total }),
+              React.createElement(CategoryDonutChart, { data: categoryTotals })
+            ),
+
+            /* Column 2: Inputs & History */
+            React.createElement(
+              'div',
+              { style: { display: 'flex', flexDirection: 'column', gap: '24px' } },
+              React.createElement(ActivityForm, { onAdd: handleAddActivity, selectedDate: selectedDate }),
+              React.createElement(ActivityHistoryList, { activities: dayActivities, onDelete: handleDeleteActivity })
+            ),
+
+            /* Column 3: Analytics & Tips */
+            React.createElement(
+              'div',
+              { style: { display: 'flex', flexDirection: 'column', gap: '24px' } },
+              React.createElement(WeeklySparkline, { dailyHistory: state.dailyHistory }),
+              React.createElement(InsightsPanel, { activities: state.activities })
+            )
+          )
+        )
+      );
+    }
+
+    // Mount App
+    const container = document.getElementById('root');
+    const root = createRoot(container);
+    root.render(React.createElement(App));
+  </script>
+</body>
+</html>
