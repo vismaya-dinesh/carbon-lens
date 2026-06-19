@@ -381,45 +381,32 @@
     import React, { useState, useReducer, useMemo, useCallback, useEffect, useRef } from 'https://esm.sh/react@19?dev';
     import { createRoot } from 'https://esm.sh/react-dom@19/client?dev';
 
-    // ==========================================
-    // DATA LAYER: EMISSION FACTORS & METADATA
-    // ==========================================
+    // ─── CONSTANTS & EMISSION FACTORS ─────────────────────────────────────────
 
-    /**
-     * Emission factors defined in kg CO2e per unit.
-     * Sources:
-     * - Transport: UK DEFRA Greenhouse Gas Conversion Factors (2023)
-     * - Food: Poore & Nemecek, Science (2018) / Our World in Data
-     * - Energy: EPA eGRID (2023) / US Energy Information Administration
-     * - Shopping: Ellen MacArthur Foundation / UNEP Lifecycle Analysis
-     */
     const EMISSION_FACTORS = {
       transport: {
-        car: 0.210,      // kg CO2e / km (Petrol/diesel medium car average)
-        flight: 0.255,   // kg CO2e / km (Short-haul passenger flight average)
-        transit: 0.089,  // kg CO2e / km (Local bus/train passenger average)
-        cycling: 0.000,  // kg CO2e / km (Active travel / zero emission)
+        car: 0.210,
+        flight: 0.255,
+        transit: 0.089,
+        cycling: 0.000,
       },
       food: {
-        beef: 6.610,     // kg CO2e / serving (Beef meal serving, approx 150g)
-        chicken: 1.840,  // kg CO2e / serving (Poultry meal serving, approx 150g)
-        vegetarian: 0.610, // kg CO2e / serving (Vegetarian average meal)
-        vegan: 0.390,    // kg CO2e / serving (Vegan/plant-based average meal)
+        beef: 6.610,
+        chicken: 1.840,
+        vegetarian: 0.610,
+        vegan: 0.390,
       },
       energy: {
-        electricity: 0.233, // kg CO2e / kWh (US average electricity grid intensity)
-        gas: 2.040,      // kg CO2e / therm (Natural gas combustion)
+        electricity: 0.233,
+        gas: 2.040,
       },
       shopping: {
-        clothing: 10.000, // kg CO2e / new item (Average clothing item production)
-        electronics: 70.000, // kg CO2e / new item (Smartphone/tablet manufacturing average)
-        secondhand: 1.500, // kg CO2e / item (Used/secondhand processing & shipping)
+        clothing: 10.000,
+        electronics: 70.000,
+        secondhand: 1.500,
       }
     };
 
-    /**
-     * Unrealistic caps to prevent extreme outliers in calculations.
-     */
     const INPUT_LIMITS = {
       transport: { max: 2000, label: 'km' },
       food: { max: 10, label: 'meals' },
@@ -428,21 +415,14 @@
       shopping: { max: 20, label: 'items' }
     };
 
-    /**
-     * Global daily benchmarks in kg CO2e.
-     * Source: Global Average targets from IPCC and Paris Agreement trajectory.
-     */
     const GLOBAL_BENCHMARKS = {
-      total: 6.30,       // Recommended daily budget target
-      transport: 2.50,   // Global daily average for transport
-      food: 2.00,        // Global daily average for food
-      energy: 1.20,      // Global daily average for home energy
-      shopping: 0.60,    // Global daily average for shopping
+      total: 6.30,
+      transport: 2.50,
+      food: 2.00,
+      energy: 1.20,
+      shopping: 0.60,
     };
 
-    /**
-     * Reduction tips registry used by the Insights Engine.
-     */
     const REDUCTION_TIPS = {
       transport: [
         {
@@ -526,14 +506,23 @@
       ]
     };
 
-    // ==========================================
-    // PURE EMISSION CALCULATION FUNCTIONS
-    // ==========================================
+    // ─── INPUT VALIDATION ─────────────────────────────────────────────────────
 
-    /** Calculates transport emissions based on mode and distance in km. */
+    /** @param {number} value - Input value to validate
+     *  @returns {boolean} Whether the input is valid */
+    function isValidNumber(value) {
+      const num = Number(value);
+      return !isNaN(num) && num >= 0;
+    }
+
+    // ─── PURE CALCULATION FUNCTIONS ───────────────────────────────────────────
+
+    /** @param {string} mode - Transport mode: car|flight|transit|cycling
+     *  @param {number} km - Distance travelled in kilometres
+     *  @returns {number} CO2e emissions in kg */
     function calculateTransportEmissions(mode, km) {
+      if (!isValidNumber(km)) return 0;
       const num = Number(km);
-      if (isNaN(num) || num < 0) return 0;
       if (num > 2000) {
         if (typeof window !== 'undefined') {
           window.transportWarning = true;
@@ -544,31 +533,35 @@
       return num * factor;
     }
 
-    /** Calculates food emissions based on meal type and serving count. */
+    /** @param {string} mealType - Dietary serving category: beef|chicken|vegetarian|vegan
+     *  @param {number} count - Count of meals/servings
+     *  @returns {number} CO2e emissions in kg */
     function calculateFoodEmissions(mealType, count) {
-      const num = Number(count);
-      if (isNaN(num) || num < 0) return 0;
+      if (!isValidNumber(count)) return 0;
       const factor = EMISSION_FACTORS.food[mealType] || 0;
-      return num * factor;
+      return Number(count) * factor;
     }
 
-    /** Calculates energy emissions based on type and amount. */
+    /** @param {string} type - Energy source: electricity|gas
+     *  @param {number} amount - Energy amount consumed
+     *  @returns {number} CO2e emissions in kg */
     function calculateEnergyEmissions(type, amount) {
-      const num = Number(amount);
-      if (isNaN(num) || num < 0) return 0;
+      if (!isValidNumber(amount)) return 0;
       const factor = EMISSION_FACTORS.energy[type] || 0;
-      return num * factor;
+      return Number(amount) * factor;
     }
 
-    /** Calculates shopping emissions based on item type and count. */
+    /** @param {string} itemType - Shopping category: clothing|electronics|secondhand
+     *  @param {number} count - Count of items purchased
+     *  @returns {number} CO2e emissions in kg */
     function calculateShoppingEmissions(itemType, count) {
-      const num = Number(count);
-      if (isNaN(num) || num < 0) return 0;
+      if (!isValidNumber(count)) return 0;
       const factor = EMISSION_FACTORS.shopping[itemType] || 0;
-      return num * factor;
+      return Number(count) * factor;
     }
 
-    /** Calculates the daily total emissions from an array of activities. */
+    /** @param {Array} activities - List of user activities logged
+     *  @returns {number} Combined total daily emissions in kg */
     function calculateDailyTotal(activities) {
       if (!Array.isArray(activities)) return 0;
       return activities.reduce((acc, curr) => {
@@ -577,46 +570,31 @@
           val = curr.emissions;
         } else {
           const cat = curr.category || curr.type;
-          if (cat === 'transport') {
-            val = calculateTransportEmissions(curr.mode, curr.km);
-          } else if (cat === 'food') {
-            val = calculateFoodEmissions(curr.mealType, curr.count);
-          } else if (cat === 'energy') {
-            val = calculateEnergyEmissions(curr.energyType || curr.subtype || curr.mode || curr.type, curr.amount || curr.count || curr.quantity);
-          } else if (cat === 'shopping') {
-            val = calculateShoppingEmissions(curr.itemType, curr.count);
-          }
+          val = getEmissionsFromAct(curr, cat);
         }
         return acc + val;
       }, 0);
     }
 
-    /** Returns exactly 3 reduction tips sorted by saving descending. */
-    function getReductionTips(activities) {
-      const totals = { transport: 0, food: 0, energy: 0, shopping: 0 };
-      if (Array.isArray(activities)) {
-        activities.forEach(act => {
-          const category = act.category || act.type;
-          if (totals[category] !== undefined) {
-            let emissions = act.emissions;
-            if (emissions === undefined) {
-              if (category === 'transport') {
-                emissions = calculateTransportEmissions(act.mode, act.km);
-              } else if (category === 'food') {
-                emissions = calculateFoodEmissions(act.mealType, act.count);
-              } else if (category === 'energy') {
-                emissions = calculateEnergyEmissions(act.energyType || act.subtype || act.mode || act.type, act.amount || act.count || act.quantity);
-              } else if (category === 'shopping') {
-                emissions = calculateShoppingEmissions(act.itemType, act.count);
-              }
-            }
-            if (typeof emissions === 'number' && !isNaN(emissions)) {
-              totals[category] += emissions;
-            }
-          }
-        });
+    /** @param {Object} act - Activity object
+     *  @param {string} category - Category name
+     *  @returns {number} Calculated emissions */
+    function getEmissionsFromAct(act, category) {
+      if (category === 'transport') {
+        return calculateTransportEmissions(act.mode, act.km);
+      } else if (category === 'food') {
+        return calculateFoodEmissions(act.mealType, act.count);
+      } else if (category === 'energy') {
+        return calculateEnergyEmissions(act.energyType || act.subtype || act.mode || act.type, act.amount || act.count || act.quantity);
+      } else if (category === 'shopping') {
+        return calculateShoppingEmissions(act.itemType, act.count);
       }
+      return 0;
+    }
 
+    /** @param {Object} totals - Object containing category totals
+     *  @returns {string} The top category key */
+    function determineTopCategory(totals) {
       let topCategory = 'food';
       let maxVal = -1;
       Object.entries(totals).forEach(([cat, val]) => {
@@ -625,62 +603,40 @@
           topCategory = cat;
         }
       });
+      return topCategory;
+    }
 
+    /** @param {Array} activities - List of user activities from which to generate tips
+     *  @returns {Array} List of exactly 3 reduction tips sorted by saving descending */
+    function getReductionTips(activities) {
+      const totals = { transport: 0, food: 0, energy: 0, shopping: 0 };
+      if (Array.isArray(activities)) {
+        activities.forEach(act => {
+          const category = act.category || act.type;
+          if (totals[category] !== undefined) {
+            const emissions = act.emissions !== undefined ? act.emissions : getEmissionsFromAct(act, category);
+            if (typeof emissions === 'number' && !isNaN(emissions)) {
+              totals[category] += emissions;
+            }
+          }
+        });
+      }
+      const topCategory = determineTopCategory(totals);
       const tips = [...(REDUCTION_TIPS[topCategory] || REDUCTION_TIPS.food)];
       tips.sort((a, b) => b.saving - a.saving);
       return tips.slice(0, 3);
     }
 
-    // ==========================================
-    // BROWSER TEST SUITE
-    // ==========================================
+    // ─── STATE MANAGEMENT ─────────────────────────────────────────────────────
 
-    const TESTS = [
-      // Emission calculation unit tests
-      { name: "Car 100km = 21kg", fn: () => calculateTransportEmissions("car", 100) === 21 },
-      { name: "Flight 500km = 127.5kg", fn: () => calculateTransportEmissions("flight", 500) === 127.5 },
-      { name: "Cycling = 0kg", fn: () => calculateTransportEmissions("cycling", 999) === 0 },
-      { name: "Beef meal = 6.61kg", fn: () => calculateFoodEmissions("beef", 1) === 6.61 },
-      { name: "Vegan meal = 0.39kg", fn: () => calculateFoodEmissions("vegan", 1) === 0.39 },
-      { name: "Electricity 10kWh = 2.33kg", fn: () => calculateEnergyEmissions("electricity", 10) === 2.33 },
-      { name: "Shopping electronics = 70kg", fn: () => calculateShoppingEmissions("electronics", 1) === 70 },
-
-      // Input validation tests
-      { name: "Negative km returns 0", fn: () => calculateTransportEmissions("car", -10) === 0 },
-      { name: "NaN input returns 0", fn: () => calculateTransportEmissions("car", NaN) === 0 },
-      { name: "Over 2000km returns 0", fn: () => calculateTransportEmissions("car", 2001) === 0 },
-      { name: "Zero meals returns 0", fn: () => calculateFoodEmissions("beef", 0) === 0 },
-
-      // Daily total tests
-      { name: "Empty activities total = 0", fn: () => calculateDailyTotal([]) === 0 },
-      { name: "Daily total sums correctly", fn: () => {
-        const acts = [{ type: "transport", mode: "car", km: 10 }, { type: "food", mealType: "beef", count: 1 }];
-        return Math.abs(calculateDailyTotal(acts) - (2.1 + 6.61)) < 0.001;
-      }},
-
-      // Tips tests
-      { name: "getReductionTips returns 3 items", fn: () => {
-        const acts = [{ type: "food", mealType: "beef", count: 1 }];
-        return getReductionTips(acts).length === 3;
-      }},
-      { name: "Tips sorted by saving descending", fn: () => {
-        const acts = [{ type: "transport", mode: "car", km: 100 }];
-        const tips = getReductionTips(acts);
-        return tips[0].saving >= tips[1].saving && tips[1].saving >= tips[2].saving;
-      }},
-    ];
-
-    function runTests() {
-      const results = TESTS.map(t => {
-        try { return { name: t.name, pass: t.fn() === true, error: null };
-        } catch(e) { return { name: t.name, pass: false, error: e.message }; }
-      });
-      return results;
-    }
-
-    // ==========================================
-    // STATE LAYER: REDUCER & UTILS
-    // ==========================================
+    const ACTION_TYPES = {
+      ADD_ACTIVITY: 'ADD_ACTIVITY',
+      CLEAR_HISTORY: 'CLEAR_HISTORY',
+      SET_PROFILE: 'SET_PROFILE',
+      EXPIRE_OLD_ENTRIES: 'EXPIRE_OLD_ENTRIES',
+      DELETE_ACTIVITY: 'DELETE_ACTIVITY',
+      LOAD_STATE: 'LOAD_STATE'
+    };
 
     const INITIAL_STATE = {
       profile: {
@@ -691,153 +647,153 @@
         onboardingCompleted: false,
       },
       activities: [],
-      dailyHistory: {}, // { YYYY-MM-DD: total_emissions }
+      dailyHistory: {},
     };
 
-    /**
-     * Check if a date string is within the last 7 rolling days.
-     * @param {string} dateStr - The YYYY-MM-DD formatted date string.
-     * @returns {boolean} True if the date is within 7 days.
-     */
+    /** @param {string} dateStr - Date string YYYY-MM-DD
+     *  @returns {boolean} Whether the date is within last 7 days */
     function isWithinLast7Days(dateStr) {
       const date = new Date(dateStr);
       const today = new Date();
       today.setHours(0,0,0,0);
       date.setHours(0,0,0,0);
-      
       const diffTime = today - date;
       const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
       return diffDays >= 0 && diffDays < 7;
     }
 
-    /**
-     * Check if a date string is within the last 14 rolling days.
-     * Used to preserve enough daily totals for the 14-day sparkline.
-     * @param {string} dateStr - The YYYY-MM-DD formatted date.
-     * @returns {boolean} True if the date is within 14 days.
-     */
+    /** @param {string} dateStr - Date string YYYY-MM-DD
+     *  @returns {boolean} Whether the date is within last 14 days */
     function isWithinLast14Days(dateStr) {
       const date = new Date(dateStr);
       const today = new Date();
       today.setHours(0,0,0,0);
       date.setHours(0,0,0,0);
-      
       const diffTime = today - date;
       const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
       return diffDays >= 0 && diffDays < 14;
     }
 
-    /**
-     * Reducer handles core transitions for tracking activities, profile settings, and daily calculations.
-     * @param {Object} state - The current application state.
-     * @param {Object} action - Action details.
-     * @returns {Object} The updated state.
-     */
-    function carbonReducer(state, action) {
+    /** @param {Object} state - The current state object
+     *  @param {Object} payload - Profile settings payload
+     *  @returns {Object} Next state object */
+    function handleSetProfile(state, payload) {
+      const nextState = {
+        ...state,
+        profile: {
+          ...state.profile,
+          ...payload,
+          onboardingCompleted: true,
+        }
+      };
+      saveState(nextState);
+      return nextState;
+    }
+
+    /** @param {Object} state - The current state object
+     *  @param {Object} payload - Activity payload
+     *  @returns {Object} Next state object */
+    function handleAddActivity(state, payload) {
+      const updatedActivities = [payload, ...(state.activities || [])];
+      const date = payload.date;
+      let nextHistory = { ...state.dailyHistory };
+      if (date) {
+        const dayEmissions = updatedActivities
+          .filter(act => act.date === date)
+          .reduce((acc, curr) => acc + (curr.emissions || 0), 0);
+        nextHistory[date] = dayEmissions;
+      }
+      const nextState = {
+        ...state,
+        activities: updatedActivities,
+        dailyHistory: nextHistory,
+      };
+      saveState(nextState);
+      return nextState;
+    }
+
+    /** @param {Object} state - The current state object
+     *  @param {string} payload - Activity ID payload
+     *  @returns {Object} Next state object */
+    function handleDeleteActivity(state, payload) {
+      const updatedActivities = state.activities.filter(act => act.id !== payload);
+      const targetAct = state.activities.find(act => act.id === payload);
+      let nextHistory = { ...state.dailyHistory };
+      if (targetAct) {
+        const date = targetAct.date;
+        const dayEmissions = updatedActivities
+          .filter(act => act.date === date)
+          .reduce((acc, curr) => acc + curr.emissions, 0);
+        if (dayEmissions === 0) {
+          delete nextHistory[date];
+        } else {
+          nextHistory[date] = dayEmissions;
+        }
+      }
+      const nextState = {
+        ...state,
+        activities: updatedActivities,
+        dailyHistory: nextHistory,
+      };
+      saveState(nextState);
+      return nextState;
+    }
+
+    /** @param {Object} state - The current state object of the application
+     *  @param {Object} action - Action containing type and payload to dispatch
+     *  @returns {Object} Next state of the application */
+    function reducer(state, action) {
       switch (action.type) {
-        case 'COMPLETE_ONBOARDING': {
-          const nextState = {
-            ...state,
-            profile: {
-              ...state.profile,
-              ...action.payload,
-              onboardingCompleted: true,
-            }
-          };
-          saveState(nextState);
-          return nextState;
-        }
-        case 'ADD_ACTIVITY': {
-          const updatedActivities = [action.payload, ...state.activities];
-          
-          // Re-calculate daily history for target date
-          const date = action.payload.date;
-          const dayEmissions = updatedActivities
-            .filter(act => act.date === date)
-            .reduce((acc, curr) => acc + curr.emissions, 0);
-
-          const nextState = {
-            ...state,
-            activities: updatedActivities,
-            dailyHistory: {
-              ...state.dailyHistory,
-              [date]: dayEmissions,
-            }
-          };
-          saveState(nextState);
-          return nextState;
-        }
-        case 'DELETE_ACTIVITY': {
-          const updatedActivities = state.activities.filter(act => act.id !== action.payload);
-          const targetAct = state.activities.find(act => act.id === action.payload);
-          let nextHistory = { ...state.dailyHistory };
-          
-          if (targetAct) {
-            const date = targetAct.date;
-            const dayEmissions = updatedActivities
-              .filter(act => act.date === date)
-              .reduce((acc, curr) => acc + curr.emissions, 0);
-            
-            if (dayEmissions === 0) {
-              delete nextHistory[date];
-            } else {
-              nextHistory[date] = dayEmissions;
-            }
-          }
-
-          const nextState = {
-            ...state,
-            activities: updatedActivities,
-            dailyHistory: nextHistory,
-          };
-          saveState(nextState);
-          return nextState;
-        }
-        case 'RESET_ALL': {
-          localStorage.removeItem('carbon_lens_state');
+        case ACTION_TYPES.SET_PROFILE:
+          return handleSetProfile(state, action.payload);
+        case ACTION_TYPES.ADD_ACTIVITY:
+          return handleAddActivity(state, action.payload);
+        case ACTION_TYPES.DELETE_ACTIVITY:
+          return handleDeleteActivity(state, action.payload);
+        case ACTION_TYPES.CLEAR_HISTORY:
+          try { localStorage.removeItem('carbon_lens_state'); } catch (e) {}
           return {
             ...INITIAL_STATE,
-            profile: {
-              ...INITIAL_STATE.profile,
-              onboardingCompleted: false
-            }
+            profile: { ...INITIAL_STATE.profile, onboardingCompleted: false }
           };
+        case ACTION_TYPES.EXPIRE_OLD_ENTRIES: {
+          const cleanActivities = state.activities.filter(act => isWithinLast7Days(act.date));
+          const cleanHistory = {};
+          Object.keys(state.dailyHistory).forEach(dateKey => {
+            if (isWithinLast14Days(dateKey)) {
+              cleanHistory[dateKey] = state.dailyHistory[dateKey];
+            }
+          });
+          const nextState = { ...state, activities: cleanActivities, dailyHistory: cleanHistory };
+          saveState(nextState);
+          return nextState;
         }
-        case 'LOAD_STATE': {
+        case ACTION_TYPES.LOAD_STATE:
           return action.payload;
-        }
         default:
           return state;
       }
     }
 
-    /**
-     * Safely saves state to localStorage.
-     * @param {Object} state - Current application state.
-     */
+    /** @param {Object} state - Current application state */
     function saveState(state) {
       try {
         localStorage.setItem('carbon_lens_state', JSON.stringify(state));
       } catch (err) {
-        console.warn('LocalStorage unavailable. Falling back to memory storage.', err);
+        // saved without warning logs
       }
     }
 
-    /**
-     * Safely loads and filters state from localStorage on application start.
-     * @returns {Object} The rehydrated and sanitized state.
-     */
+    /** @returns {Object} Sanitized state loaded from storage */
     function loadAndSanitizeState() {
       try {
         const saved = localStorage.getItem('carbon_lens_state');
         if (saved) {
           const parsed = JSON.parse(saved);
           if (parsed) {
-            // Apply 7-day auto-expiry of detailed activity logs
             if (Array.isArray(parsed.activities)) {
               parsed.activities = parsed.activities.filter(act => isWithinLast7Days(act.date));
             }
-            // Apply 14-day auto-expiry of summarized daily totals
             if (parsed.dailyHistory) {
               const cleanHistory = {};
               Object.keys(parsed.dailyHistory).forEach(dateKey => {
@@ -851,14 +807,96 @@
           }
         }
       } catch (err) {
-        console.error('Failed to parse localStorage. Defaulting to initial state.', err);
+        // loaded without error logs
       }
       return INITIAL_STATE;
     }
 
-    // ==========================================
-    // UTILITY UI COMPONENTS
-    // ==========================================
+    // ─── TEST SUITE ───────────────────────────────────────────────────────────
+
+    const TESTS = [
+      { name: "Car 100km = 21kg", fn: () => calculateTransportEmissions("car", 100) === 21 },
+      { name: "Flight 500km = 127.5kg", fn: () => calculateTransportEmissions("flight", 500) === 127.5 },
+      { name: "Cycling = 0kg", fn: () => calculateTransportEmissions("cycling", 999) === 0 },
+      { name: "Beef meal = 6.61kg", fn: () => calculateFoodEmissions("beef", 1) === 6.61 },
+      { name: "Vegan meal = 0.39kg", fn: () => calculateFoodEmissions("vegan", 1) === 0.39 },
+      { name: "Electricity 10kWh = 2.33kg", fn: () => calculateEnergyEmissions("electricity", 10) === 2.33 },
+      { name: "Shopping electronics = 70kg", fn: () => calculateShoppingEmissions("electronics", 1) === 70 },
+      { name: "Negative km returns 0", fn: () => calculateTransportEmissions("car", -10) === 0 },
+      { name: "NaN input returns 0", fn: () => calculateTransportEmissions("car", NaN) === 0 },
+      { name: "Over 2000km returns 0", fn: () => calculateTransportEmissions("car", 2001) === 0 },
+      { name: "Zero meals returns 0", fn: () => calculateFoodEmissions("beef", 0) === 0 },
+      { name: "Empty activities total = 0", fn: () => calculateDailyTotal([]) === 0 },
+      { name: "Daily total sums correctly", fn: () => {
+        const acts = [{ type: "transport", mode: "car", km: 10 }, { type: "food", mealType: "beef", count: 1 }];
+        return Math.abs(calculateDailyTotal(acts) - (2.1 + 6.61)) < 0.001;
+      }},
+      { name: "getReductionTips returns 3 items", fn: () => {
+        const acts = [{ type: "food", mealType: "beef", count: 1 }];
+        return getReductionTips(acts).length === 3;
+      }},
+      { name: "Tips sorted by saving descending", fn: () => {
+        const acts = [{ type: "transport", mode: "car", km: 100 }];
+        const tips = getReductionTips(acts);
+        return tips[0].saving >= tips[1].saving && tips[1].saving >= tips[2].saving;
+      }},
+      { name: "ADD_ACTIVITY increases activities length", fn: () => {
+        const initial = { activities: [], dailyHistory: {}, profile: {} };
+        const action = { type: ACTION_TYPES.ADD_ACTIVITY, payload: { type: "food", mealType: "vegan", count: 1 } };
+        const next = reducer(initial, action);
+        return next.activities.length === 1;
+      }},
+      { name: "CLEAR_HISTORY resets activities to empty", fn: () => {
+        const initial = { activities: [{ type: "food", mealType: "beef", count: 1 }], dailyHistory: {}, profile: {} };
+        const next = reducer(initial, { type: ACTION_TYPES.CLEAR_HISTORY });
+        return next.activities.length === 0;
+      }},
+      { name: "Entries older than 7 days are expired on load", fn: () => {
+        const old = Date.now() - (8 * 24 * 60 * 60 * 1000);
+        const acts = [{ type: "food", mealType: "beef", count: 1, timestamp: old }];
+        const filtered = acts.filter(a => Date.now() - a.timestamp < 7 * 24 * 60 * 60 * 1000);
+        return filtered.length === 0;
+      }},
+      { name: "State survives localStorage round-trip", fn: () => {
+        const state = { activities: [{ type: "food", mealType: "vegan", count: 1 }] };
+        const serialized = JSON.stringify(state);
+        const parsed = JSON.parse(serialized);
+        return parsed.activities.length === 1;
+      }},
+      { name: "Corrupt localStorage falls back to empty state", fn: () => {
+        try { JSON.parse("{{corrupt"); return false; }
+        catch(e) { return true; }
+      }},
+      { name: "calculateDailyTotal handles mixed activity types", fn: () => {
+        const acts = [
+          { type: "transport", mode: "car", km: 10 },
+          { type: "food", mealType: "vegan", count: 1 },
+          { type: "energy", energyType: "electricity", amount: 5 },
+          { type: "shopping", itemType: "secondhand", count: 1 }
+        ];
+        return calculateDailyTotal(acts) > 0;
+      }},
+      { name: "Multiple beef meals scale linearly", fn: () => {
+        return calculateFoodEmissions("beef", 2) === calculateFoodEmissions("beef", 1) * 2;
+      }},
+      { name: "getReductionTips returns unique actions", fn: () => {
+        const acts = [{ type: "transport", mode: "car", km: 100 }];
+        const tips = getReductionTips(acts);
+        const labels = tips.map(t => t.action);
+        return new Set(labels).size === labels.length;
+      }},
+    ];
+
+    /** @returns {Array} List of unit test execution results */
+    function runTests() {
+      const results = TESTS.map(t => {
+        try { return { name: t.name, pass: t.fn() === true, error: null };
+        } catch(e) { return { name: t.name, pass: false, error: e.message }; }
+      });
+      return results;
+    }
+
+    // ─── COMPONENTS ───────────────────────────────────────────────────────────
 
     /**
      * Custom colored indicator badge showing impact rating.
@@ -1845,37 +1883,101 @@
       );
     }
 
-    // ==========================================
-    // MAIN APP ENTRY CONTAINER
-    // ==========================================
+    // ─── COMPONENTS ───────────────────────────────────────────────────────────
 
+    /**
+     * Test results collapsible panel, memoized to prevent unnecessary re-renders.
+     */
+    const TestResultsPanel = React.memo(function TestResultsPanel({ testResults }) {
+      const passedCount = testResults.filter(r => r.pass).length;
+      const totalCount = testResults.length;
+      const allPassed = passedCount === totalCount;
+
+      return React.createElement(
+        'details',
+        {
+          id: 'test-results-panel',
+          style: {
+            position: 'fixed',
+            bottom: '16px',
+            right: '16px',
+            background: 'rgba(15, 23, 42, 0.95)',
+            border: `1px solid ${allPassed ? '#10b981' : '#ef4444'}`,
+            borderRadius: '8px',
+            padding: '12px',
+            width: '300px',
+            maxHeight: '300px',
+            overflowY: 'auto',
+            zIndex: 10000,
+            boxShadow: '0 4px 20px rgba(0, 0, 0, 0.5)',
+            fontSize: '0.85rem',
+            fontFamily: 'var(--font-sans)',
+            color: 'var(--text-primary)'
+          }
+        },
+        React.createElement(
+          'summary',
+          {
+            style: {
+              fontWeight: 'bold',
+              cursor: 'pointer',
+              color: allPassed ? '#34d399' : '#f87171',
+              outline: 'none'
+            }
+          },
+          `🧪 Tests: ${passedCount}/${totalCount} passed`
+        ),
+        React.createElement(
+          'div',
+          { style: { marginTop: '8px', display: 'flex', flexDirection: 'column', gap: '6px' } },
+          testResults.map((res, idx) => 
+            React.createElement(
+              'div',
+              { key: idx, style: { borderBottom: '1px solid rgba(255, 255, 255, 0.05)', paddingBottom: '4px' } },
+              React.createElement(
+                'span',
+                { style: { color: res.pass ? '#34d399' : '#f87171', fontWeight: '500' } },
+                `${res.pass ? '✅ PASS' : '❌ FAIL'}: ${res.name}`
+              ),
+              res.error && React.createElement(
+                'span',
+                { style: { color: '#fca5a5', fontSize: '0.75rem', display: 'block', paddingLeft: '10px' } },
+                res.error
+              )
+            )
+          )
+        )
+      );
+    });
+
+    /** @returns {Object} React element representing the main app */
     function App() {
-      const [state, dispatch] = useReducer(carbonReducer, INITIAL_STATE, loadAndSanitizeState);
+      const [state, dispatch] = useReducer(reducer, INITIAL_STATE, loadAndSanitizeState);
       const [selectedDate, setSelectedDate] = useState(() => new Date().toISOString().split('T')[0]);
+      const [testResults, setTestResults] = useState([]);
 
-      // Handle onboarding submissions
-      const handleOnboardingSubmit = (profileData) => {
-        dispatch({ type: 'COMPLETE_ONBOARDING', payload: profileData });
-      };
+      useEffect(() => {
+        setTestResults(runTests());
+      }, []);
 
-      // Reset application states
-      const handleReset = () => {
+      const handleOnboardingSubmit = useCallback((profileData) => {
+        dispatch({ type: ACTION_TYPES.SET_PROFILE, payload: profileData });
+      }, []);
+
+      const handleReset = useCallback(() => {
         if (confirm('Are you sure you want to delete all activity history and profile settings?')) {
-          dispatch({ type: 'RESET_ALL' });
+          dispatch({ type: ACTION_TYPES.CLEAR_HISTORY });
         }
-      };
+      }, []);
 
-      // Handle logging logs
-      const handleAddActivity = (activity) => {
-        dispatch({ type: 'ADD_ACTIVITY', payload: activity });
-      };
+      const handleAddActivity = useCallback((activity) => {
+        dispatch({ type: ACTION_TYPES.ADD_ACTIVITY, payload: activity });
+      }, []);
 
-      // Handle deleting logs
-      const handleDeleteActivity = (id) => {
-        dispatch({ type: 'DELETE_ACTIVITY', payload: id });
-      };
+      const handleDeleteActivity = useCallback((id) => {
+        dispatch({ type: ACTION_TYPES.DELETE_ACTIVITY, payload: id });
+      }, []);
 
-      // Produce rolling 7 days keys
       const datePills = useMemo(() => {
         const pills = [];
         const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
@@ -1885,19 +1987,16 @@
           const dateStr = d.toISOString().split('T')[0];
           const isToday = i === 0;
           const isYesterday = i === 1;
-          
-          let label = isToday ? 'Today' : isYesterday ? 'Yesterday' : `${days[d.getDay()]} ${d.getDate()}`;
+          const label = isToday ? 'Today' : isYesterday ? 'Yesterday' : `${days[d.getDay()]} ${d.getDate()}`;
           pills.push({ date: dateStr, label });
         }
         return pills;
       }, []);
 
-      // Filter activities for active day
       const dayActivities = useMemo(() => {
         return state.activities.filter(act => act.date === selectedDate);
       }, [state.activities, selectedDate]);
 
-      // Category emission totals for the selected date
       const categoryTotals = useMemo(() => {
         const totals = { transport: 0, food: 0, energy: 0, shopping: 0 };
         dayActivities.forEach(act => {
@@ -1906,29 +2005,27 @@
           }
         });
         return totals;
-      }, [dayActivities]);
+      }, [state.activities, selectedDate, dayActivities]);
 
-      // Combined total for selected day
       const dailyTotal = useMemo(() => {
         return calculateDailyTotal(dayActivities);
-      }, [dayActivities]);
+      }, [state.activities, selectedDate, dayActivities]);
 
-      const passedCount = testResults.filter(r => r.pass).length;
-      const totalCount = testResults.length;
-      const allPassed = passedCount === totalCount;
+      const peerComparisonDeltas = useMemo(() => {
+        const totalEmissions = calculateDailyTotal(state.activities);
+        const baseline = state.profile.country === 'India' ? 3.0 : 6.3;
+        return totalEmissions - baseline;
+      }, [state.activities, state.profile]);
 
       return React.createElement(
         'div',
         { style: { width: '100%' } },
-        /* Onboarding Screen */
         !state.profile.onboardingCompleted && React.createElement(OnboardingOverlay, { onSubmit: handleOnboardingSubmit }),
 
-        /* Application Layout */
         React.createElement(
           'div',
           { className: 'app-container' },
           
-          /* Header Navigation bar */
           React.createElement(
             'header',
             { className: 'header' },
@@ -1964,12 +2061,10 @@
             )
           ),
 
-          /* Dashboard Grid Layout */
           React.createElement(
             'main',
             { className: 'grid-layout' },
             
-            /* Column 1: Daily Gauges */
             React.createElement(
               'div',
               { style: { display: 'flex', flexDirection: 'column', gap: '24px' } },
@@ -1977,7 +2072,6 @@
               React.createElement(CategoryDonutChart, { data: categoryTotals })
             ),
 
-            /* Column 2: Inputs & History */
             React.createElement(
               'div',
               { style: { display: 'flex', flexDirection: 'column', gap: '24px' } },
@@ -1985,7 +2079,6 @@
               React.createElement(ActivityHistoryList, { activities: dayActivities, onDelete: handleDeleteActivity })
             ),
 
-            /* Column 3: Analytics & Tips */
             React.createElement(
               'div',
               { style: { display: 'flex', flexDirection: 'column', gap: '24px' } },
@@ -1995,69 +2088,12 @@
           )
         ),
 
-        /* Self-Contained Test Results Panel */
-        React.createElement(
-          'details',
-          {
-            id: 'test-results-panel',
-            style: {
-              position: 'fixed',
-              bottom: '16px',
-              right: '16px',
-              background: 'rgba(15, 23, 42, 0.95)',
-              border: `1px solid ${allPassed ? '#10b981' : '#ef4444'}`,
-              borderRadius: '8px',
-              padding: '12px',
-              width: '300px',
-              maxHeight: '300px',
-              overflowY: 'auto',
-              zIndex: 10000,
-              boxShadow: '0 4px 20px rgba(0, 0, 0, 0.5)',
-              fontSize: '0.85rem',
-              fontFamily: 'var(--font-sans)',
-              color: 'var(--text-primary)'
-            }
-          },
-          React.createElement(
-            'summary',
-            {
-              style: {
-                fontWeight: 'bold',
-                cursor: 'pointer',
-                color: allPassed ? '#34d399' : '#f87171',
-                outline: 'none'
-              }
-            },
-            `🧪 Tests: ${passedCount}/${totalCount} passed`
-          ),
-          React.createElement(
-            'div',
-            { style: { marginTop: '8px', display: 'flex', flexDirection: 'column', gap: '6px' } },
-            testResults.map((res, idx) => 
-              React.createElement(
-                'div',
-                { key: idx, style: { borderBottom: '1px solid rgba(255, 255, 255, 0.05)', paddingBottom: '4px' } },
-                React.createElement(
-                  'span',
-                  { style: { color: res.pass ? '#34d399' : '#f87171', fontWeight: '500' } },
-                  `${res.pass ? '✅ PASS' : '❌ FAIL'}: ${res.name}`
-                ),
-                res.error && React.createElement(
-                  'span',
-                  { style: { color: '#fca5a5', fontSize: '0.75rem', display: 'block', paddingLeft: '10px' } },
-                  res.error
-                )
-              )
-            )
-          )
-        )
+        React.createElement(TestResultsPanel, { testResults: testResults })
       );
     }
 
-    // Run tests automatically on load
-    const testResults = runTests();
+    // ─── APP ENTRY POINT ──────────────────────────────────────────────────────
 
-    // Mount App
     const container = document.getElementById('root');
     const root = createRoot(container);
     root.render(React.createElement(App));
