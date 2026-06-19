@@ -527,6 +527,158 @@
     };
 
     // ==========================================
+    // PURE EMISSION CALCULATION FUNCTIONS
+    // ==========================================
+
+    /** Calculates transport emissions based on mode and distance in km. */
+    function calculateTransportEmissions(mode, km) {
+      const num = Number(km);
+      if (isNaN(num) || num < 0) return 0;
+      if (num > 2000) {
+        if (typeof window !== 'undefined') {
+          window.transportWarning = true;
+        }
+        return 0;
+      }
+      const factor = EMISSION_FACTORS.transport[mode] || 0;
+      return num * factor;
+    }
+
+    /** Calculates food emissions based on meal type and serving count. */
+    function calculateFoodEmissions(mealType, count) {
+      const num = Number(count);
+      if (isNaN(num) || num < 0) return 0;
+      const factor = EMISSION_FACTORS.food[mealType] || 0;
+      return num * factor;
+    }
+
+    /** Calculates energy emissions based on type and amount. */
+    function calculateEnergyEmissions(type, amount) {
+      const num = Number(amount);
+      if (isNaN(num) || num < 0) return 0;
+      const factor = EMISSION_FACTORS.energy[type] || 0;
+      return num * factor;
+    }
+
+    /** Calculates shopping emissions based on item type and count. */
+    function calculateShoppingEmissions(itemType, count) {
+      const num = Number(count);
+      if (isNaN(num) || num < 0) return 0;
+      const factor = EMISSION_FACTORS.shopping[itemType] || 0;
+      return num * factor;
+    }
+
+    /** Calculates the daily total emissions from an array of activities. */
+    function calculateDailyTotal(activities) {
+      if (!Array.isArray(activities)) return 0;
+      return activities.reduce((acc, curr) => {
+        let val = 0;
+        if (curr.emissions !== undefined && typeof curr.emissions === 'number') {
+          val = curr.emissions;
+        } else {
+          const cat = curr.category || curr.type;
+          if (cat === 'transport') {
+            val = calculateTransportEmissions(curr.mode, curr.km);
+          } else if (cat === 'food') {
+            val = calculateFoodEmissions(curr.mealType, curr.count);
+          } else if (cat === 'energy') {
+            val = calculateEnergyEmissions(curr.energyType || curr.subtype || curr.mode || curr.type, curr.amount || curr.count || curr.quantity);
+          } else if (cat === 'shopping') {
+            val = calculateShoppingEmissions(curr.itemType, curr.count);
+          }
+        }
+        return acc + val;
+      }, 0);
+    }
+
+    /** Returns exactly 3 reduction tips sorted by saving descending. */
+    function getReductionTips(activities) {
+      const totals = { transport: 0, food: 0, energy: 0, shopping: 0 };
+      if (Array.isArray(activities)) {
+        activities.forEach(act => {
+          const category = act.category || act.type;
+          if (totals[category] !== undefined) {
+            let emissions = act.emissions;
+            if (emissions === undefined) {
+              if (category === 'transport') {
+                emissions = calculateTransportEmissions(act.mode, act.km);
+              } else if (category === 'food') {
+                emissions = calculateFoodEmissions(act.mealType, act.count);
+              } else if (category === 'energy') {
+                emissions = calculateEnergyEmissions(act.energyType || act.subtype || act.mode || act.type, act.amount || act.count || act.quantity);
+              } else if (category === 'shopping') {
+                emissions = calculateShoppingEmissions(act.itemType, act.count);
+              }
+            }
+            if (typeof emissions === 'number' && !isNaN(emissions)) {
+              totals[category] += emissions;
+            }
+          }
+        });
+      }
+
+      let topCategory = 'food';
+      let maxVal = -1;
+      Object.entries(totals).forEach(([cat, val]) => {
+        if (val > maxVal) {
+          maxVal = val;
+          topCategory = cat;
+        }
+      });
+
+      const tips = [...(REDUCTION_TIPS[topCategory] || REDUCTION_TIPS.food)];
+      tips.sort((a, b) => b.saving - a.saving);
+      return tips.slice(0, 3);
+    }
+
+    // ==========================================
+    // BROWSER TEST SUITE
+    // ==========================================
+
+    const TESTS = [
+      // Emission calculation unit tests
+      { name: "Car 100km = 21kg", fn: () => calculateTransportEmissions("car", 100) === 21 },
+      { name: "Flight 500km = 127.5kg", fn: () => calculateTransportEmissions("flight", 500) === 127.5 },
+      { name: "Cycling = 0kg", fn: () => calculateTransportEmissions("cycling", 999) === 0 },
+      { name: "Beef meal = 6.61kg", fn: () => calculateFoodEmissions("beef", 1) === 6.61 },
+      { name: "Vegan meal = 0.39kg", fn: () => calculateFoodEmissions("vegan", 1) === 0.39 },
+      { name: "Electricity 10kWh = 2.33kg", fn: () => calculateEnergyEmissions("electricity", 10) === 2.33 },
+      { name: "Shopping electronics = 70kg", fn: () => calculateShoppingEmissions("electronics", 1) === 70 },
+
+      // Input validation tests
+      { name: "Negative km returns 0", fn: () => calculateTransportEmissions("car", -10) === 0 },
+      { name: "NaN input returns 0", fn: () => calculateTransportEmissions("car", NaN) === 0 },
+      { name: "Over 2000km returns 0", fn: () => calculateTransportEmissions("car", 2001) === 0 },
+      { name: "Zero meals returns 0", fn: () => calculateFoodEmissions("beef", 0) === 0 },
+
+      // Daily total tests
+      { name: "Empty activities total = 0", fn: () => calculateDailyTotal([]) === 0 },
+      { name: "Daily total sums correctly", fn: () => {
+        const acts = [{ type: "transport", mode: "car", km: 10 }, { type: "food", mealType: "beef", count: 1 }];
+        return Math.abs(calculateDailyTotal(acts) - (2.1 + 6.61)) < 0.001;
+      }},
+
+      // Tips tests
+      { name: "getReductionTips returns 3 items", fn: () => {
+        const acts = [{ type: "food", mealType: "beef", count: 1 }];
+        return getReductionTips(acts).length === 3;
+      }},
+      { name: "Tips sorted by saving descending", fn: () => {
+        const acts = [{ type: "transport", mode: "car", km: 100 }];
+        const tips = getReductionTips(acts);
+        return tips[0].saving >= tips[1].saving && tips[1].saving >= tips[2].saving;
+      }},
+    ];
+
+    function runTests() {
+      const results = TESTS.map(t => {
+        try { return { name: t.name, pass: t.fn() === true, error: null };
+        } catch(e) { return { name: t.name, pass: false, error: e.message }; }
+      });
+      return results;
+    }
+
+    // ==========================================
     // STATE LAYER: REDUCER & UTILS
     // ==========================================
 
@@ -1303,25 +1455,7 @@
      */
     function InsightsPanel({ activities }) {
       const insights = useMemo(() => {
-        // Calculate category totals over the rolling 7 days
-        const totals = { transport: 0, food: 0, energy: 0, shopping: 0 };
-        activities.forEach(act => {
-          if (totals[act.category] !== undefined) {
-            totals[act.category] += act.emissions;
-          }
-        });
-
-        // Determine top category
-        let topCategory = 'food'; // default fallback
-        let maxVal = -1;
-        Object.entries(totals).forEach(([cat, val]) => {
-          if (val > maxVal) {
-            maxVal = val;
-            topCategory = cat;
-          }
-        });
-
-        return REDUCTION_TIPS[topCategory] || REDUCTION_TIPS.food;
+        return getReductionTips(activities);
       }, [activities]);
 
       return React.createElement(
@@ -1426,11 +1560,15 @@
           return;
         }
 
-        // Check against warning limits
-        const limitKey = activeTab === 'energy' ? `${activeTab}_${type}` : activeTab;
-        const limit = INPUT_LIMITS[limitKey];
-        if (limit && num > limit.max) {
-          setWarning(`⚠️ Note: Values above ${limit.max} ${limit.label} will be capped to preserve graph scaling.`);
+        if (activeTab === 'transport' && num > 2000) {
+          setWarning('⚠️ Warning: Transportation distance exceeds 2000 km.');
+        } else {
+          // Check against warning limits
+          const limitKey = activeTab === 'energy' ? `${activeTab}_${type}` : activeTab;
+          const limit = INPUT_LIMITS[limitKey];
+          if (limit && num > limit.max) {
+            setWarning(`⚠️ Note: Values above ${limit.max} ${limit.label} will be capped to preserve graph scaling.`);
+          }
         }
       };
 
@@ -1443,10 +1581,14 @@
         // Re-evaluate limits with new type
         const num = parseFloat(quantityStr);
         if (!isNaN(num)) {
-          const limitKey = activeTab === 'energy' ? `${activeTab}_${newType}` : activeTab;
-          const limit = INPUT_LIMITS[limitKey];
-          if (limit && num > limit.max) {
-            setWarning(`⚠️ Note: Values above ${limit.max} ${limit.label} will be capped.`);
+          if (activeTab === 'transport' && num > 2000) {
+            setWarning('⚠️ Warning: Transportation distance exceeds 2000 km.');
+          } else {
+            const limitKey = activeTab === 'energy' ? `${activeTab}_${newType}` : activeTab;
+            const limit = INPUT_LIMITS[limitKey];
+            if (limit && num > limit.max) {
+              setWarning(`⚠️ Note: Values above ${limit.max} ${limit.label} will be capped.`);
+            }
           }
         }
       };
@@ -1459,24 +1601,39 @@
           return;
         }
 
-        // Apply caps for unrealistic inputs
-        let finalQuantity = num;
-        const limitKey = activeTab === 'energy' ? `${activeTab}_${type}` : activeTab;
-        const limit = INPUT_LIMITS[limitKey];
-        if (limit && num > limit.max) {
-          finalQuantity = limit.max;
-        }
+        let computedEmissions = 0;
+        let loggedQuantity = num;
 
-        // Compute direct emissions using constants
-        const factor = EMISSION_FACTORS[activeTab][type];
-        const computedEmissions = finalQuantity * factor;
+        if (activeTab === 'transport') {
+          computedEmissions = calculateTransportEmissions(type, num);
+          if (num > 2000) {
+            setWarning('⚠️ Warning: Transportation distance exceeds 2000 km.');
+          }
+        } else {
+          // Apply caps for unrealistic inputs
+          let finalQuantity = num;
+          const limitKey = activeTab === 'energy' ? `${activeTab}_${type}` : activeTab;
+          const limit = INPUT_LIMITS[limitKey];
+          if (limit && num > limit.max) {
+            finalQuantity = limit.max;
+          }
+          loggedQuantity = finalQuantity;
+
+          if (activeTab === 'food') {
+            computedEmissions = calculateFoodEmissions(type, finalQuantity);
+          } else if (activeTab === 'energy') {
+            computedEmissions = calculateEnergyEmissions(type, finalQuantity);
+          } else if (activeTab === 'shopping') {
+            computedEmissions = calculateShoppingEmissions(type, finalQuantity);
+          }
+        }
 
         onAdd({
           id: Date.now().toString(),
           date: selectedDate,
           category: activeTab,
           type,
-          quantity: finalQuantity,
+          quantity: loggedQuantity,
           emissions: computedEmissions,
           note: note.trim()
         });
@@ -1485,7 +1642,9 @@
         setQuantityStr('');
         setNote('');
         setError('');
-        setWarning('');
+        if (activeTab !== 'transport' || num <= 2000) {
+          setWarning('');
+        }
       };
 
       return React.createElement(
@@ -1751,8 +1910,12 @@
 
       // Combined total for selected day
       const dailyTotal = useMemo(() => {
-        return Object.values(categoryTotals).reduce((acc, curr) => acc + curr, 0);
-      }, [categoryTotals]);
+        return calculateDailyTotal(dayActivities);
+      }, [dayActivities]);
+
+      const passedCount = testResults.filter(r => r.pass).length;
+      const totalCount = testResults.length;
+      const allPassed = passedCount === totalCount;
 
       return React.createElement(
         'div',
@@ -1830,9 +1993,69 @@
               React.createElement(InsightsPanel, { activities: state.activities })
             )
           )
+        ),
+
+        /* Self-Contained Test Results Panel */
+        React.createElement(
+          'details',
+          {
+            id: 'test-results-panel',
+            style: {
+              position: 'fixed',
+              bottom: '16px',
+              right: '16px',
+              background: 'rgba(15, 23, 42, 0.95)',
+              border: `1px solid ${allPassed ? '#10b981' : '#ef4444'}`,
+              borderRadius: '8px',
+              padding: '12px',
+              width: '300px',
+              maxHeight: '300px',
+              overflowY: 'auto',
+              zIndex: 10000,
+              boxShadow: '0 4px 20px rgba(0, 0, 0, 0.5)',
+              fontSize: '0.85rem',
+              fontFamily: 'var(--font-sans)',
+              color: 'var(--text-primary)'
+            }
+          },
+          React.createElement(
+            'summary',
+            {
+              style: {
+                fontWeight: 'bold',
+                cursor: 'pointer',
+                color: allPassed ? '#34d399' : '#f87171',
+                outline: 'none'
+              }
+            },
+            `🧪 Tests: ${passedCount}/${totalCount} passed`
+          ),
+          React.createElement(
+            'div',
+            { style: { marginTop: '8px', display: 'flex', flexDirection: 'column', gap: '6px' } },
+            testResults.map((res, idx) => 
+              React.createElement(
+                'div',
+                { key: idx, style: { borderBottom: '1px solid rgba(255, 255, 255, 0.05)', paddingBottom: '4px' } },
+                React.createElement(
+                  'span',
+                  { style: { color: res.pass ? '#34d399' : '#f87171', fontWeight: '500' } },
+                  `${res.pass ? '✅ PASS' : '❌ FAIL'}: ${res.name}`
+                ),
+                res.error && React.createElement(
+                  'span',
+                  { style: { color: '#fca5a5', fontSize: '0.75rem', display: 'block', paddingLeft: '10px' } },
+                  res.error
+                )
+              )
+            )
+          )
         )
       );
     }
+
+    // Run tests automatically on load
+    const testResults = runTests();
 
     // Mount App
     const container = document.getElementById('root');
